@@ -10,6 +10,6 @@ message RunStmtResponse {
   string result = 1;
 }
 
-service SequencerService {
+service SequencerGrpcService {
   rpc RunStmt (RunStmtRequest) returns (RunStmtResponse) {}
 }
