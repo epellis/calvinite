@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package calvinite;
+
+message RunStmtRequest {
+  string query = 1;
+}
+
+message RunStmtResponse {
+  string result = 1;
+}
+
+service SequencerService {
+  rpc RunStmt (RunStmtRequest) returns (RunStmtResponse) {}
+}
