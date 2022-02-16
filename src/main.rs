@@ -1,4 +1,6 @@
 mod client;
+mod lock_manager;
+mod scheduler;
 mod sequencer;
 
 // use std::net::SocketAddr;
