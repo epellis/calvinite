@@ -6,6 +6,11 @@ message RunStmtRequest {
   string query = 1;
 }
 
+message RunStmtRequestWithUUID {
+  string query = 1;
+  string uuid = 2;
+}
+
 message RunStmtResponse {
   string result = 1;
 }

@@ -25,40 +25,7 @@ fn get_impacted_records_from_stmt(stmt: ast::Statement) -> Vec<Record> {
                 .collect(),
             _ => Vec::new(),
         },
-        _ => Vec::new(), // Statement::Analyze { .. } => {}
-                         // Statement::Truncate { .. } => {}
-                         // Statement::Msck { .. } => {}
-                         // Statement::Query(_) => {}
-                         // Statement::Insert { .. } => {}
-                         // Statement::Directory { .. } => {}
-                         // Statement::Copy { .. } => {}
-                         // Statement::Update { .. } => {}
-                         // Statement::Delete { .. } => {}
-                         // Statement::CreateView { .. } => {}
-                         // Statement::CreateTable { .. } => {}
-                         // Statement::CreateVirtualTable { .. } => {}
-                         // Statement::CreateIndex { .. } => {}
-                         // Statement::AlterTable { .. } => {}
-                         // Statement::Drop { .. } => {}
-                         // Statement::SetVariable { .. } => {}
-                         // Statement::ShowVariable { .. } => {}
-                         // Statement::ShowCreate { .. } => {}
-                         // Statement::ShowColumns { .. } => {}
-                         // Statement::StartTransaction { .. } => {}
-                         // Statement::SetTransaction { .. } => {}
-                         // Statement::Comment { .. } => {}
-                         // Statement::Commit { .. } => {}
-                         // Statement::Rollback { .. } => {}
-                         // Statement::CreateSchema { .. } => {}
-                         // Statement::CreateDatabase { .. } => {}
-                         // Statement::Assert { .. } => {}
-                         // Statement::Grant { .. } => {}
-                         // Statement::Revoke { .. } => {}
-                         // Statement::Deallocate { .. } => {}
-                         // Statement::Execute { .. } => {}
-                         // Statement::Prepare { .. } => {}
-                         // Statement::ExplainTable { .. } => {}
-                         // Statement::Explain { .. } => {}
+        _ => Vec::new(),
     }
 }
 
@@ -85,7 +52,7 @@ mod tests {
     }
 
     #[test]
-    fn get_impacted_doulbrecords_for_insert_multiple_values() {
+    fn get_impacted_records_for_insert_multiple_values() {
         let stmt = "INSERT INTO foo VALUES (1), (2), (3)";
 
         assert_eq!(
