@@ -1,7 +1,9 @@
 mod client;
-mod lock_manager;
+mod common;
+pub mod lock_manager;
 mod scheduler;
 mod sequencer;
+mod stmt_analyzer;
 
 // use std::net::SocketAddr;
 // use tokio::net::TcpListener;

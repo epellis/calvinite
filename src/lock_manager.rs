@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
-struct LockManager<R> {
+pub struct LockManager<R> {
     ordered_pending_txns_for_record_lock: HashMap<R, Vec<Uuid>>,
     pending_record_locks_for_txn: HashMap<Uuid, HashSet<R>>,
     all_record_locks_for_txn: HashMap<Uuid, Vec<R>>,
