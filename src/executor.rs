@@ -11,6 +11,7 @@ use tokio::sync::mpsc;
 struct ExecutorService {
     scheduled_queries_channel: mpsc::Receiver<RunStmtRequestWithUuid>,
     completed_queries_channel: mpsc::Sender<RunStmtRequestWithUuid>,
+    query_result_channel: mpsc::Sender<Vec<RecordStorage>>,
     storage: sled::Db,
 }
 
@@ -24,13 +25,15 @@ impl ExecutorService {
     pub fn new(
         scheduled_queries_channel: mpsc::Receiver<RunStmtRequestWithUuid>,
         completed_queries_channel: mpsc::Sender<RunStmtRequestWithUuid>,
+        query_result_channel: mpsc::Sender<Vec<RecordStorage>>,
     ) -> anyhow::Result<Self> {
         let tmp_dir = tempfile::tempdir()?;
-        println!("Creating Sled DB at {}", tmp_dir.path().to_str().unwrap());
+        dbg!("Creating Sled DB at {}", tmp_dir.path().to_str().unwrap());
 
         Ok(Self {
             scheduled_queries_channel,
             completed_queries_channel,
+            query_result_channel,
             storage: sled::open(tmp_dir.path())?,
         })
     }
@@ -38,9 +41,9 @@ impl ExecutorService {
     pub async fn serve(&mut self) -> anyhow::Result<()> {
         while let Some(req) = self.scheduled_queries_channel.recv().await {
             // TODO: Spawn thread for this
-            let (completed_req, result) = self.execute_request(req).await?;
-            dbg!("Result of {:?}", result);
+            let (completed_req, query_results) = self.execute_request(req).await?;
             self.completed_queries_channel.send(completed_req).await?;
+            self.query_result_channel.send(query_results).await?;
         }
         Ok(())
     }
@@ -195,5 +198,66 @@ impl ExecutorService {
         );
 
         Ok(Vec::new())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::executor::ExecutorService;
+    use crate::scheduler::SchedulerService;
+    use crate::sequencer::calvinite::{RecordStorage, RunStmtRequestWithUuid};
+    use sqlparser::ast::DataType::Uuid;
+    use tokio::sync::mpsc;
+
+    #[tokio::test]
+    async fn executes_write_read() {
+        let (scheduled_queries_channel_tx, mut scheduled_queries_channel_rx) = mpsc::channel(32);
+        let (completed_queries_channel_tx, mut completed_queries_channel_rx) = mpsc::channel(32);
+        let (query_result_channel_tx, mut query_result_channel_rx) = mpsc::channel(32);
+
+        let mut es = ExecutorService::new(
+            scheduled_queries_channel_rx,
+            completed_queries_channel_tx,
+            query_result_channel_tx,
+        )
+        .unwrap();
+
+        tokio::spawn(async move {
+            es.serve().await.unwrap();
+        });
+
+        let stmt1_uuid = uuid::Uuid::new_v4();
+        let stmt1 = RunStmtRequestWithUuid {
+            query: "INSERT INTO foo VALUES (1, 2)".into(),
+            uuid: stmt1_uuid.to_string(),
+        };
+
+        scheduled_queries_channel_tx
+            .send(stmt1.clone())
+            .await
+            .unwrap();
+
+        let completed_query1 = completed_queries_channel_rx.recv().await.unwrap();
+        assert_eq!(stmt1, completed_query1);
+
+        let query_results1 = query_result_channel_rx.recv().await.unwrap();
+        assert_eq!(query_results1, Vec::new());
+
+        let stmt2_uuid = uuid::Uuid::new_v4();
+        let stmt2 = RunStmtRequestWithUuid {
+            query: "SELECT * FROM foo WHERE id = 1".into(),
+            uuid: stmt2_uuid.to_string(),
+        };
+
+        scheduled_queries_channel_tx
+            .send(stmt2.clone())
+            .await
+            .unwrap();
+
+        let completed_query2 = completed_queries_channel_rx.recv().await.unwrap();
+        assert_eq!(stmt2, completed_query2);
+
+        let query_results2 = query_result_channel_rx.recv().await.unwrap();
+        assert_eq!(query_results2, vec![RecordStorage { val: 2 }]);
     }
 }
