@@ -33,7 +33,9 @@ impl SchedulerService {
 
             self.pending_txns.insert(txn_uuid.clone(), req.clone());
 
-            let impacted_records = stmt_analyzer::get_impacted_records(&req.query)?;
+            let sql_stmt = stmt_analyzer::SqlStmt::from_raw_stmt(req.query.clone())?;
+
+            let impacted_records = sql_stmt.write_records;
             dbg!(
                 "Impacted Records of {:?} <-> {:?} are {:?}",
                 txn_uuid.clone(),
@@ -79,7 +81,7 @@ mod tests {
         let stmt_uuid = uuid::Uuid::new_v4();
 
         let stmt = RunStmtRequestWithUuid {
-            query: "INSERT INTO foo VALUES (1)".into(),
+            query: "INSERT INTO foo VALUES (1, 2)".into(),
             uuid: stmt_uuid.to_string(),
         };
 
