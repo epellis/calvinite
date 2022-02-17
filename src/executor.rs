@@ -117,8 +117,9 @@ impl ExecutorService {
             }
             ast::Statement::Update {
                 selection: Some(selection),
+                assignments,
                 ..
-            } => Self::execute_update_stmt(record_cache, selection),
+            } => Self::execute_update_stmt(record_cache, selection, assignments),
             _ => Ok(Vec::new()),
         }
     }
@@ -179,7 +180,20 @@ impl ExecutorService {
     fn execute_update_stmt(
         record_cache: &mut HashMap<TouchedRecord, RecordStorage>,
         selection: &ast::Expr,
+        assignments: &Vec<ast::Assignment>,
     ) -> anyhow::Result<Vec<RecordStorage>> {
+        let record = SqlStmt::find_id_in_expr(selection).ok_or(anyhow!(""))?;
+
+        let value = SqlStmt::expr_to_num(&assignments[0].value).ok_or(anyhow!(""))?;
+
+        record_cache.insert(
+            TouchedRecord {
+                record,
+                is_dirty: true,
+            },
+            RecordStorage { val: value },
+        );
+
         Ok(Vec::new())
     }
 }
