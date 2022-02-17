@@ -4,6 +4,7 @@ pub mod lock_manager;
 mod scheduler;
 mod sequencer;
 mod stmt_analyzer;
+mod executor;
 
 // use std::net::SocketAddr;
 // use tokio::net::TcpListener;

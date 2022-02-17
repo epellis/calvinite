@@ -91,11 +91,4 @@ mod tests {
         let scheduled_query = scheduled_queries_channel_rx.recv().await.unwrap();
         assert_eq!(stmt, scheduled_query);
     }
-
-    // #[test]
-    // fn get_impacted_records_for_insert() {
-    //     let stmt = "INSERT INTO foo VALUES (1)";
-    //
-    //     assert_eq!(get_impacted_records(stmt).unwrap(), vec![Record { id: 1 }])
-    // }
 }

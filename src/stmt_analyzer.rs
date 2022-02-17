@@ -30,9 +30,21 @@ fn get_impacted_records_from_stmt(stmt: ast::Statement) -> Vec<Record> {
 }
 
 fn get_impacted_record_from_value_vec(value: &Vec<ast::Expr>) -> Option<Record> {
-    match value.first() {
-        Some(ast::Expr::Value(ast::Value::Number(value, _))) => match value.parse() {
-            Ok(number_value) => Some(Record { id: number_value }),
+    let (key, value) = (expr_to_num(&value[0]), expr_to_num(&value[1]));
+
+    match (key, value) {
+        (Some(key), Some(value)) => Some(Record {
+            id: key,
+            val: value,
+        }),
+        _ => None,
+    }
+}
+
+fn expr_to_num(expr: &ast::Expr) -> Option<u64> {
+    match expr {
+        ast::Expr::Value(ast::Value::Number(value, _)) => match value.parse() {
+            Ok(number_value) => Some(number_value),
             _ => None,
         },
         _ => None,
@@ -46,18 +58,25 @@ mod tests {
 
     #[test]
     fn get_impacted_records_for_insert() {
-        let stmt = "INSERT INTO foo VALUES (1)";
+        let stmt = "INSERT INTO foo VALUES (1, 2)";
 
-        assert_eq!(get_impacted_records(stmt).unwrap(), vec![Record { id: 1 }])
+        assert_eq!(
+            get_impacted_records(stmt).unwrap(),
+            vec![Record { id: 1, val: 2 }]
+        )
     }
 
     #[test]
     fn get_impacted_records_for_insert_multiple_values() {
-        let stmt = "INSERT INTO foo VALUES (1), (2), (3)";
+        let stmt = "INSERT INTO foo VALUES (1, 2), (2, 3), (3, 4)";
 
         assert_eq!(
             get_impacted_records(stmt).unwrap(),
-            vec![Record { id: 1 }, Record { id: 2 }, Record { id: 3 }]
+            vec![
+                Record { id: 1, val: 2 },
+                Record { id: 2, val: 3 },
+                Record { id: 3, val: 4 }
+            ]
         )
     }
 }

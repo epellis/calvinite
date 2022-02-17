@@ -12,6 +12,8 @@ tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.8", features = ["net"] }
 anyhow = "1.0"
 sqlparser = "0.14.0"
+sled = "0.34.7"
+tempfile = "3"
 
 [dependencies.uuid]
 version = "1.0.0-alpha.1"
