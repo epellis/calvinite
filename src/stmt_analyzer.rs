@@ -9,7 +9,7 @@ use std::os::macos::raw::stat;
 #[derive(Clone, Debug)]
 pub struct SqlStmt {
     str_stmt: String,
-    ast_stmts: Vec<ast::Statement>,
+    pub ast_stmts: Vec<ast::Statement>,
     pub selected_records: Vec<Record>,
     pub inserted_records: Vec<Record>,
     pub updated_records: Vec<Record>,
@@ -72,7 +72,7 @@ impl SqlStmt {
         }
     }
 
-    fn find_id_in_expr(expr: &ast::Expr) -> Option<Record> {
+    pub fn find_id_in_expr(expr: &ast::Expr) -> Option<Record> {
         match expr {
             ast::Expr::BinaryOp {
                 left,
