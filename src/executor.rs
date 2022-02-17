@@ -115,41 +115,12 @@ impl ExecutorService {
             ast::Statement::Insert { source, .. } => {
                 Self::execute_insert_stmt(record_cache, source)
             }
+            ast::Statement::Update {
+                selection: Some(selection),
+                ..
+            } => Self::execute_update_stmt(record_cache, selection),
             _ => Ok(Vec::new()),
-            // ast::Statement::Insert()
-            //     ast::Query {
-            //         body: ast::SetExpr::Select(select),
-            //         ..
-            //     } => match *select.clone() {
-            //         ast::Select {
-            //             selection: Some(selection),
-            //             ..
-            //         } => {
-            //             let record =
-            //                 SqlStmt::find_id_in_expr(&selection).ok_or(anyhow!("no id"))?;
-            //             let record_value = record_cache
-            //                 .get(&TouchedRecord {
-            //                     record,
-            //                     is_dirty: false,
-            //                 })
-            //                 .ok_or(anyhow!("expected record"))?;
-            //             results.push(record_value.clone());
-            //         }
-            //         _ => (),
-            //     },
-            //     _ => (),
-            // },
-            // ast::Statement::Insert { source, .. } => match source.body {
-            //     ast::SetExpr::Values(ast::Values(values)) => values
-            //         // .iter()
-            //         // .flat_map(Self::first_num_from_value_vec)
-            //         // .collect(),
-            //     _ => (),
-            // },
-            // _ => ,
         }
-
-        // Ok(results)
     }
 
     fn execute_query_stmt(
@@ -181,6 +152,33 @@ impl ExecutorService {
     fn execute_insert_stmt(
         record_cache: &mut HashMap<TouchedRecord, RecordStorage>,
         source: &ast::Query,
+    ) -> anyhow::Result<Vec<RecordStorage>> {
+        match &source.body {
+            ast::SetExpr::Values(ast::Values(values)) => {
+                // TODO: Parse more than first insert
+                let (key_expr, value_expr) = (&values[0][0], &values[0][1]);
+
+                let key = SqlStmt::expr_to_num(key_expr).ok_or(anyhow!("failed to parse key"))?;
+                let value =
+                    SqlStmt::expr_to_num(value_expr).ok_or(anyhow!("failed to parse value"))?;
+
+                record_cache.insert(
+                    TouchedRecord {
+                        record: Record { id: key },
+                        is_dirty: true,
+                    },
+                    RecordStorage { val: value },
+                );
+
+                Ok(Vec::new())
+            }
+            _ => Ok(Vec::new()),
+        }
+    }
+
+    fn execute_update_stmt(
+        record_cache: &mut HashMap<TouchedRecord, RecordStorage>,
+        selection: &ast::Expr,
     ) -> anyhow::Result<Vec<RecordStorage>> {
         Ok(Vec::new())
     }

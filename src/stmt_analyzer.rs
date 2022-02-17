@@ -118,7 +118,8 @@ impl SqlStmt {
             .and_then(|value| Self::expr_to_num(value).map(|key| Record { id: key }))
     }
 
-    fn expr_to_num(expr: &ast::Expr) -> Option<u64> {
+    // TODO: Return result
+    pub fn expr_to_num(expr: &ast::Expr) -> Option<u64> {
         match expr {
             ast::Expr::Value(ast::Value::Number(value, _)) => match value.parse() {
                 Ok(number_value) => Some(number_value),
