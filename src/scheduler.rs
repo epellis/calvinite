@@ -33,7 +33,7 @@ impl SchedulerService {
 
             self.pending_txns.insert(txn_uuid.clone(), req.clone());
 
-            let sql_stmt = stmt_analyzer::SqlStmt::from_raw_stmt(req.query.clone())?;
+            let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query.clone())?;
 
             let impacted_records = sql_stmt.write_records;
             dbg!(
