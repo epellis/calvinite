@@ -18,3 +18,7 @@ message RunStmtResponse {
 service SequencerGrpcService {
   rpc RunStmt (RunStmtRequest) returns (RunStmtResponse) {}
 }
+
+message RecordStorage {
+  uint64 val = 1;
+}
