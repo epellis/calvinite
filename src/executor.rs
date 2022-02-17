@@ -39,7 +39,10 @@ impl ExecutorService {
         &mut self,
         req: RunStmtRequestWithUuid,
     ) -> anyhow::Result<(RunStmtRequestWithUuid, Vec<Record>)> {
-        // let sql_stmt = stmt_analyzer::SqlStmt::from_raw_stmt(req.query.clone())?;
+        let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query.clone())?;
+
+        // Load read and write records into local memory
+
         //
         // for record in sql_stmt.write_records.iter() {
         //     let record_proto = RecordStorage { val: record.val };

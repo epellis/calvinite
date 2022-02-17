@@ -35,7 +35,7 @@ impl SchedulerService {
 
             let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query.clone())?;
 
-            let impacted_records = sql_stmt.write_records;
+            let impacted_records = sql_stmt.inserted_records;
             dbg!(
                 "Impacted Records of {:?} <-> {:?} are {:?}",
                 txn_uuid.clone(),
