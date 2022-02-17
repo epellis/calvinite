@@ -3,13 +3,14 @@ use sqlparser::ast;
 use sqlparser::ast::Expr;
 use sqlparser::dialect::GenericDialect;
 use sqlparser::parser::Parser;
+use std::os::macos::raw::stat;
 
 /// Stores an analyzed SQL string made of many SQL Statements.
 #[derive(Clone, Debug)]
 pub struct SqlStmt {
     str_stmt: String,
     ast_stmts: Vec<ast::Statement>,
-    pub read_records: Vec<Record>,
+    pub selected_records: Vec<Record>,
     pub inserted_records: Vec<Record>,
     pub updated_records: Vec<Record>,
 }
@@ -17,6 +18,7 @@ pub struct SqlStmt {
 impl SqlStmt {
     pub fn from_string(str_stmt: String) -> anyhow::Result<Self> {
         let ast_stmts = Parser::parse_sql(&GenericDialect {}, &str_stmt)?;
+
         let inserted_records = ast_stmts
             .iter()
             .flat_map(Self::find_inserted_records)
@@ -27,13 +29,37 @@ impl SqlStmt {
             .flat_map(Self::find_updated_records)
             .collect();
 
+        let selected_records = ast_stmts
+            .iter()
+            .flat_map(Self::find_selected_records)
+            .collect();
+
         Ok(Self {
             str_stmt,
             ast_stmts,
-            read_records: Vec::new(),
+            selected_records,
             inserted_records,
             updated_records,
         })
+    }
+
+    fn find_selected_records(stmt: &ast::Statement) -> Vec<Record> {
+        match stmt {
+            ast::Statement::Query(query) => match *query.clone() {
+                ast::Query {
+                    body: ast::SetExpr::Select(select),
+                    ..
+                } => match *select.clone() {
+                    ast::Select {
+                        selection: Some(selection),
+                        ..
+                    } => Vec::from_iter(Self::find_id_in_expr(&selection).into_iter()),
+                    _ => Vec::new(),
+                },
+                _ => Vec::new(),
+            },
+            _ => Vec::new(),
+        }
     }
 
     fn find_updated_records(stmt: &ast::Statement) -> Vec<Record> {
@@ -133,5 +159,13 @@ mod tests {
         let analyzed_stmt = SqlStmt::from_string(stmt).unwrap();
 
         assert_eq!(analyzed_stmt.updated_records, vec![Record { id: 1 }])
+    }
+
+    #[test]
+    fn get_impacted_records_for_select() {
+        let stmt = "SELECT * FROM foo WHERE id = 1".to_string();
+        let analyzed_stmt = SqlStmt::from_string(stmt).unwrap();
+
+        assert_eq!(analyzed_stmt.selected_records, vec![Record { id: 1 }])
     }
 }
