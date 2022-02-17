@@ -110,51 +110,78 @@ impl ExecutorService {
         record_cache: &mut HashMap<TouchedRecord, RecordStorage>,
         stmt: &ast::Statement,
     ) -> anyhow::Result<Vec<RecordStorage>> {
-        let mut results = Vec::new();
-
         match stmt {
-            ast::Statement::Query(query) => match *query.clone() {
-                ast::Query {
-                    body: ast::SetExpr::Select(select),
-                    ..
-                } => match *select.clone() {
-                    ast::Select {
-                        selection: Some(selection),
-                        ..
-                    } => {
-                        let record =
-                            SqlStmt::find_id_in_expr(&selection).ok_or(anyhow!("no id"))?;
-                        let record_value = record_cache
-                            .get(&TouchedRecord {
-                                record,
-                                is_dirty: false,
-                            })
-                            .ok_or(anyhow!("expected record"))?;
-                        results.push(record_value.clone());
-                    }
-                    _ => (),
-                },
-                _ => (),
-            },
-            ast::Statement::Insert { source, .. } => match source.body {
-                ast::SetExpr::Values(ast::Values(values)) => values
-                    // .iter()
-                    // .flat_map(Self::first_num_from_value_vec)
-                    // .collect(),
-                _ => (),
-            },
-            _ => ,
+            ast::Statement::Query(query) => Self::execute_query_stmt(record_cache, query),
+            ast::Statement::Insert { source, .. } => {
+                Self::execute_insert_stmt(record_cache, source)
+            }
+            _ => Ok(Vec::new()),
+            // ast::Statement::Insert()
+            //     ast::Query {
+            //         body: ast::SetExpr::Select(select),
+            //         ..
+            //     } => match *select.clone() {
+            //         ast::Select {
+            //             selection: Some(selection),
+            //             ..
+            //         } => {
+            //             let record =
+            //                 SqlStmt::find_id_in_expr(&selection).ok_or(anyhow!("no id"))?;
+            //             let record_value = record_cache
+            //                 .get(&TouchedRecord {
+            //                     record,
+            //                     is_dirty: false,
+            //                 })
+            //                 .ok_or(anyhow!("expected record"))?;
+            //             results.push(record_value.clone());
+            //         }
+            //         _ => (),
+            //     },
+            //     _ => (),
+            // },
+            // ast::Statement::Insert { source, .. } => match source.body {
+            //     ast::SetExpr::Values(ast::Values(values)) => values
+            //         // .iter()
+            //         // .flat_map(Self::first_num_from_value_vec)
+            //         // .collect(),
+            //     _ => (),
+            // },
+            // _ => ,
         }
 
-        Ok(results)
+        // Ok(results)
     }
 
     fn execute_query_stmt(
         record_cache: &mut HashMap<TouchedRecord, RecordStorage>,
-        stmt: &ast::Statement::Query,
+        query: &ast::Query,
     ) -> anyhow::Result<Vec<RecordStorage>> {
-        todo!()
+        match &query.body {
+            ast::SetExpr::Select(select) => match *select.clone() {
+                ast::Select {
+                    selection: Some(selection),
+                    ..
+                } => {
+                    let record =
+                        SqlStmt::find_id_in_expr(&selection).ok_or(anyhow!("Couldn't find ID"))?;
+                    let record_value = record_cache
+                        .get(&TouchedRecord {
+                            record,
+                            is_dirty: false,
+                        })
+                        .ok_or(anyhow!("expected record"))?;
+                    Ok(vec![record_value.clone()])
+                }
+                _ => Ok(Vec::new()),
+            },
+            _ => Ok(Vec::new()),
+        }
+    }
 
+    fn execute_insert_stmt(
+        record_cache: &mut HashMap<TouchedRecord, RecordStorage>,
+        source: &ast::Query,
+    ) -> anyhow::Result<Vec<RecordStorage>> {
         Ok(Vec::new())
     }
 }
