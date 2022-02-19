@@ -12,7 +12,8 @@ message RunStmtRequestWithUUID {
 }
 
 message RunStmtResponse {
-  string result = 1;
+  string uuid = 1;
+  repeated RecordStorage results = 2;
 }
 
 service SequencerGrpcService {

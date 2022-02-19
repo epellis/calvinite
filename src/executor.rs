@@ -1,4 +1,4 @@
-use crate::calvinite_tonic::{RecordStorage, RunStmtRequestWithUuid};
+use crate::calvinite_tonic::{RecordStorage, RunStmtRequestWithUuid, RunStmtResponse};
 use crate::common::Record;
 use crate::stmt_analyzer;
 use crate::stmt_analyzer::SqlStmt;
@@ -8,10 +8,10 @@ use sqlparser::ast;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
-struct ExecutorService {
+pub struct ExecutorService {
     scheduled_queries_channel: mpsc::Receiver<RunStmtRequestWithUuid>,
     completed_queries_channel: mpsc::Sender<RunStmtRequestWithUuid>,
-    query_result_channel: mpsc::Sender<Vec<RecordStorage>>,
+    query_result_channel: mpsc::Sender<RunStmtResponse>,
     storage: sled::Db,
 }
 
@@ -25,7 +25,7 @@ impl ExecutorService {
     pub fn new(
         scheduled_queries_channel: mpsc::Receiver<RunStmtRequestWithUuid>,
         completed_queries_channel: mpsc::Sender<RunStmtRequestWithUuid>,
-        query_result_channel: mpsc::Sender<Vec<RecordStorage>>,
+        query_result_channel: mpsc::Sender<RunStmtResponse>,
     ) -> anyhow::Result<Self> {
         let tmp_dir = tempfile::tempdir()?;
         dbg!("Creating Sled DB at {}", tmp_dir.path().to_str().unwrap());
@@ -41,9 +41,17 @@ impl ExecutorService {
     pub async fn serve(&mut self) -> anyhow::Result<()> {
         while let Some(req) = self.scheduled_queries_channel.recv().await {
             // TODO: Spawn thread for this
+            let txn_uuid = req.uuid.clone();
+
             let (completed_req, query_results) = self.execute_request(req).await?;
             self.completed_queries_channel.send(completed_req).await?;
-            self.query_result_channel.send(query_results).await?;
+
+            let stmt_response = RunStmtResponse {
+                uuid: txn_uuid,
+                results: query_results,
+            };
+
+            self.query_result_channel.send(stmt_response).await?;
         }
         Ok(())
     }
@@ -241,7 +249,7 @@ mod tests {
         assert_eq!(stmt1, completed_query1);
 
         let query_results1 = query_result_channel_rx.recv().await.unwrap();
-        assert_eq!(query_results1, Vec::new());
+        assert_eq!(query_results1.results, Vec::new());
 
         let stmt2_uuid = uuid::Uuid::new_v4();
         let stmt2 = RunStmtRequestWithUuid {
@@ -258,6 +266,6 @@ mod tests {
         assert_eq!(stmt2, completed_query2);
 
         let query_results2 = query_result_channel_rx.recv().await.unwrap();
-        assert_eq!(query_results2, vec![RecordStorage { val: 2 }]);
+        assert_eq!(query_results2.results, vec![RecordStorage { val: 2 }]);
     }
 }
