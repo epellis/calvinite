@@ -1,5 +1,5 @@
+use crate::calvinite_tonic::{RecordStorage, RunStmtRequestWithUuid};
 use crate::common::Record;
-use crate::sequencer::calvinite::{RecordStorage, RunStmtRequestWithUuid};
 use crate::stmt_analyzer;
 use crate::stmt_analyzer::SqlStmt;
 use anyhow::anyhow;
@@ -203,9 +203,9 @@ impl ExecutorService {
 
 #[cfg(test)]
 mod tests {
+    use crate::calvinite_tonic::{RecordStorage, RunStmtRequestWithUuid};
     use crate::executor::ExecutorService;
     use crate::scheduler::SchedulerService;
-    use crate::sequencer::calvinite::{RecordStorage, RunStmtRequestWithUuid};
     use sqlparser::ast::DataType::Uuid;
     use tokio::sync::mpsc;
 

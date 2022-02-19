@@ -1,10 +1,5 @@
-pub mod calvinite {
-    tonic::include_proto!("calvinite"); // The string specified here must match the proto package name
-}
-
-use calvinite::sequencer_grpc_service_client::SequencerGrpcServiceClient;
-use calvinite::sequencer_grpc_service_server::{SequencerGrpcService, SequencerGrpcServiceServer};
-use calvinite::{RunStmtRequest, RunStmtResponse};
+use crate::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcService;
+use crate::calvinite_tonic::{RunStmtRequest, RunStmtResponse};
 use tokio::sync::mpsc;
 use tonic::Response;
 
@@ -44,9 +39,9 @@ impl SequencerGrpcService for SequencerService {
 
 #[cfg(test)]
 mod tests {
-    use crate::sequencer::calvinite::sequencer_grpc_service_client::SequencerGrpcServiceClient;
-    use crate::sequencer::calvinite::sequencer_grpc_service_server::SequencerGrpcServiceServer;
-    use crate::sequencer::calvinite::RunStmtRequest;
+    use crate::calvinite_tonic::sequencer_grpc_service_client::SequencerGrpcServiceClient;
+    use crate::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcServiceServer;
+    use crate::calvinite_tonic::RunStmtRequest;
     use crate::sequencer::SequencerService;
     use tokio::net::TcpListener;
     use tokio::sync::mpsc;
