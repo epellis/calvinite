@@ -1,5 +1,6 @@
 use calvinite::calvinite_tonic::sequencer_grpc_service_client::SequencerGrpcServiceClient;
 use calvinite::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcServiceServer;
+use calvinite::calvinite_tonic::{RecordStorage, RunStmtRequest};
 use calvinite::executor::ExecutorService;
 use calvinite::scheduler::SchedulerService;
 use calvinite::sequencer::SequencerService;
@@ -8,15 +9,16 @@ use tokio::net::TcpListener;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 use tonic::transport::{Channel, Server};
+use tonic::Request;
 
-pub struct CalvinInstance {
-    listener_http_address: String,
+pub struct CalvinSingleInstance {
     sequencer_thread: JoinHandle<()>,
     scheduler_thread: JoinHandle<()>,
     executor_thread: JoinHandle<()>,
+    client: SequencerGrpcServiceClient<Channel>,
 }
 
-impl CalvinInstance {
+impl CalvinSingleInstance {
     pub async fn new() -> Self {
         // Setup Channels
         let (sequenced_queries_channel_tx, mut sequenced_queries_channel_rx) = mpsc::channel(32);
@@ -68,17 +70,23 @@ impl CalvinInstance {
             es.serve().await.unwrap();
         });
 
+        let client = SequencerGrpcServiceClient::connect(listener_http_address.clone())
+            .await
+            .unwrap();
+
         Self {
-            listener_http_address,
             sequencer_thread,
             scheduler_thread,
             executor_thread,
+            client,
         }
     }
 
-    pub async fn create_client(&self) -> SequencerGrpcServiceClient<Channel> {
-        SequencerGrpcServiceClient::connect(self.listener_http_address.clone())
-            .await
-            .unwrap()
+    pub async fn assert_query(&mut self, query: &str, expected_results: Vec<RecordStorage>) {
+        let req = Request::new(RunStmtRequest {
+            query: query.to_string(),
+        });
+        let res = self.client.run_stmt(req).await.unwrap();
+        assert_eq!(res.into_inner().results, expected_results);
     }
 }

@@ -13,25 +13,37 @@ use tonic::Request;
 mod common;
 
 #[tokio::test]
-async fn test_e2e() {
-    let calvinite = common::CalvinInstance::new().await;
+async fn test_write_then_read() {
+    let mut calvinite = common::CalvinSingleInstance::new().await;
 
-    let mut sequencer_client = calvinite.create_client().await;
+    calvinite
+        .assert_query("INSERT INTO foo VALUES (1, 2)", Vec::new())
+        .await;
+    calvinite
+        .assert_query(
+            "SELECT * FROM foo WHERE id = 1",
+            vec![RecordStorage { val: 2 }],
+        )
+        .await;
+}
 
-    let run_stmt1_request = Request::new(RunStmtRequest {
-        query: "INSERT INTO foo VALUES (1, 2)".into(),
-    });
+#[tokio::test]
+async fn test_write_then_read_then_read() {
+    let mut calvinite = common::CalvinSingleInstance::new().await;
 
-    let response_1 = sequencer_client.run_stmt(run_stmt1_request).await.unwrap();
-    assert_eq!(response_1.into_inner().results, Vec::new());
-
-    let run_stmt2_request = Request::new(RunStmtRequest {
-        query: "SELECT * FROM foo WHERE id = 1".into(),
-    });
-
-    let response_2 = sequencer_client.run_stmt(run_stmt2_request).await.unwrap();
-    assert_eq!(
-        response_2.into_inner().results,
-        vec![RecordStorage { val: 2 }]
-    );
+    calvinite
+        .assert_query("INSERT INTO foo VALUES (1, 2)", Vec::new())
+        .await;
+    calvinite
+        .assert_query(
+            "SELECT * FROM foo WHERE id = 1",
+            vec![RecordStorage { val: 2 }],
+        )
+        .await;
+    calvinite
+        .assert_query(
+            "SELECT * FROM foo WHERE id = 1",
+            vec![RecordStorage { val: 2 }],
+        )
+        .await;
 }
