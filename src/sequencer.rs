@@ -8,65 +8,20 @@ use tokio::sync::{mpsc, oneshot};
 use tonic::Response;
 use uuid::Uuid;
 
-/// Receives all completed transactions and forwards results to callbacks registered by the
-/// sequencer.
-#[derive(Debug)]
-pub struct CompletedQueryNotifierService {
-    query_result_channel: Mutex<mpsc::Receiver<RunStmtResponse>>,
-    callbacks: Arc<Mutex<HashMap<Uuid, sync::oneshot::Sender<RunStmtResponse>>>>,
-}
-
-impl CompletedQueryNotifierService {
-    pub fn new(query_result_channel: Mutex<mpsc::Receiver<RunStmtResponse>>) -> Self {
-        Self {
-            query_result_channel,
-            callbacks: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-
-    pub async fn serve(&self) -> anyhow::Result<()> {
-        // TODO: Show that this method is only called once instead of needing a mutex
-        let mut query_channel = self.query_result_channel.lock().unwrap();
-
-        while let Some(req) = query_channel.recv().await {
-            let mut callbacks = self.callbacks.lock().unwrap();
-
-            let txn_uuid = Uuid::parse_str(&req.uuid)?;
-
-            let callback = callbacks
-                .remove(&txn_uuid)
-                .ok_or(anyhow!("Expected TXN callback"))?;
-
-            callback.send(req).unwrap();
-        }
-        Ok(())
-    }
-
-    pub async fn register_callback(
-        &self,
-        uuid: Uuid,
-        callback: sync::oneshot::Sender<RunStmtResponse>,
-    ) {
-        let mut callbacks = self.callbacks.lock().unwrap();
-
-        callbacks.insert(uuid, callback);
-    }
-}
-
 #[derive(Debug)]
 pub struct SequencerService {
     sequenced_queries_channel: mpsc::Sender<RunStmtRequestWithUuid>,
-    completed_query_notification_service: Arc<CompletedQueryNotifierService>,
+    completed_queries_channel: Arc<sync::broadcast::Sender<RunStmtResponse>>,
 }
 
 impl SequencerService {
     pub fn new(
         sequenced_queries_channel: mpsc::Sender<RunStmtRequestWithUuid>,
-        completed_query_notification_service: Arc<CompletedQueryNotifierService>,
+        completed_queries_channel: Arc<sync::broadcast::Sender<RunStmtResponse>>,
     ) -> Self {
         Self {
             sequenced_queries_channel,
-            completed_query_notification_service,
+            completed_queries_channel,
         }
     }
 }
@@ -79,25 +34,24 @@ impl SequencerGrpcService for SequencerService {
     ) -> Result<tonic::Response<RunStmtResponse>, tonic::Status> {
         let run_stmt_request = request.into_inner();
 
-        let txn_uuid = Uuid::new_v4();
-
-        let (completed_txn_tx, completed_txn_rx) = oneshot::channel();
-
-        self.completed_query_notification_service
-            .register_callback(txn_uuid.clone(), completed_txn_tx)
-            .await;
+        let txn_uuid = Uuid::new_v4().to_string();
 
         self.sequenced_queries_channel
             .send(RunStmtRequestWithUuid {
                 query: run_stmt_request.query.clone(),
-                uuid: Uuid::new_v4().to_string(),
+                uuid: txn_uuid.clone(),
             })
             .await
             .unwrap();
 
-        let completed_txn = completed_txn_rx.await.unwrap();
+        let mut completed_queries_rx = self.completed_queries_channel.subscribe();
 
-        Ok(Response::new(completed_txn))
+        while let Ok(completed_query) = completed_queries_rx.recv().await {
+            if completed_query.uuid == txn_uuid {
+                return Ok(Response::new(completed_query));
+            }
+        }
+        Err(tonic::Status::new(tonic::Code::Internal, "Unreachable"))
     }
 }
 
@@ -105,11 +59,11 @@ impl SequencerGrpcService for SequencerService {
 mod tests {
     use crate::calvinite_tonic::sequencer_grpc_service_client::SequencerGrpcServiceClient;
     use crate::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcServiceServer;
-    use crate::calvinite_tonic::RunStmtRequest;
-    use crate::sequencer::{CompletedQueryNotifierService, SequencerService};
+    use crate::calvinite_tonic::{RunStmtRequest, RunStmtResponse};
+    use crate::sequencer::SequencerService;
     use std::sync::{Arc, Mutex};
     use tokio::net::TcpListener;
-    use tokio::sync::mpsc;
+    use tokio::sync::{broadcast, mpsc};
     use tonic::transport::Server;
     use tonic::Request;
 
@@ -122,18 +76,13 @@ mod tests {
         let listener_http_address = format!("http://127.0.0.1:{}", listener_address.port());
 
         let (sequenced_queries_channel_tx, mut sequenced_queries_channel_rx) = mpsc::channel(32);
-        let (query_result_channel_tx, mut query_result_channel_rx) = mpsc::channel(32);
+        let (query_result_channel_tx, _) = broadcast::channel(32);
+        let arc_query_result_channel_tx = Arc::new(query_result_channel_tx);
 
-        let mut completion_notifier_service = Arc::new(CompletedQueryNotifierService::new(
-            Mutex::new(query_result_channel_rx),
-        ));
-
-        let sequencer_service =
-            SequencerService::new(sequenced_queries_channel_tx, completion_notifier_service);
-
-        tokio::spawn(async move {
-            completion_notifier_service.serve().await.unwrap();
-        });
+        let sequencer_service = SequencerService::new(
+            sequenced_queries_channel_tx,
+            arc_query_result_channel_tx.clone(),
+        );
 
         tokio::spawn(async move {
             Server::builder()
@@ -151,10 +100,27 @@ mod tests {
             query: "SELECT * FROM foo WHERE id = 1;".into(),
         });
 
-        let run_stmt_response = sequencer_client.run_stmt(run_stmt_request).await.unwrap();
-        let run_stmt_request_from_channel = sequenced_queries_channel_rx.recv().await.unwrap();
+        // 1: Client issues request
+        let run_stmt_response_fut =
+            tokio::spawn(async move { sequencer_client.run_stmt(run_stmt_request).await.unwrap() });
 
-        // assert_eq!(run_stmt_response.into_inner().results, "SELECT 1 + 1;");
-        // assert_eq!(run_stmt_request_from_channel.query, "SELECT 1 + 1;");
+        // 2: Request is forwarded to scheduler
+        let run_stmt_request_from_channel = sequenced_queries_channel_rx.recv().await.unwrap();
+        assert_eq!(
+            run_stmt_request_from_channel.query.clone(),
+            "SELECT * FROM foo WHERE id = 1;"
+        );
+
+        // 3: Executor sends back results
+        let mocked_run_stmt_response = RunStmtResponse {
+            uuid: run_stmt_request_from_channel.uuid,
+            results: Vec::new(),
+        };
+
+        arc_query_result_channel_tx.send(mocked_run_stmt_response.clone());
+
+        let run_stmt_response = run_stmt_response_fut.await.unwrap();
+
+        assert_eq!(run_stmt_response.into_inner(), mocked_run_stmt_response);
     }
 }
