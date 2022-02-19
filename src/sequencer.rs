@@ -17,11 +17,11 @@ pub struct SequencerService {
 impl SequencerService {
     pub fn new(
         sequenced_queries_channel: mpsc::Sender<RunStmtRequestWithUuid>,
-        completed_queries_channel: Arc<sync::broadcast::Sender<RunStmtResponse>>,
+        query_result_channel: Arc<sync::broadcast::Sender<RunStmtResponse>>,
     ) -> Self {
         Self {
             sequenced_queries_channel,
-            completed_queries_channel,
+            completed_queries_channel: query_result_channel,
         }
     }
 }

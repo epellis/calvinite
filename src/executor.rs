@@ -6,12 +6,14 @@ use anyhow::anyhow;
 use prost::Message;
 use sqlparser::ast;
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync;
 use tokio::sync::mpsc;
 
 pub struct ExecutorService {
     scheduled_queries_channel: mpsc::Receiver<RunStmtRequestWithUuid>,
     completed_queries_channel: mpsc::Sender<RunStmtRequestWithUuid>,
-    query_result_channel: mpsc::Sender<RunStmtResponse>,
+    query_result_channel: Arc<sync::broadcast::Sender<RunStmtResponse>>,
     storage: sled::Db,
 }
 
@@ -25,7 +27,7 @@ impl ExecutorService {
     pub fn new(
         scheduled_queries_channel: mpsc::Receiver<RunStmtRequestWithUuid>,
         completed_queries_channel: mpsc::Sender<RunStmtRequestWithUuid>,
-        query_result_channel: mpsc::Sender<RunStmtResponse>,
+        query_result_channel: Arc<sync::broadcast::Sender<RunStmtResponse>>,
     ) -> anyhow::Result<Self> {
         let tmp_dir = tempfile::tempdir()?;
         dbg!("Creating Sled DB at {}", tmp_dir.path().to_str().unwrap());
@@ -51,7 +53,7 @@ impl ExecutorService {
                 results: query_results,
             };
 
-            self.query_result_channel.send(stmt_response).await?;
+            self.query_result_channel.send(stmt_response);
         }
         Ok(())
     }
@@ -215,18 +217,20 @@ mod tests {
     use crate::executor::ExecutorService;
     use crate::scheduler::SchedulerService;
     use sqlparser::ast::DataType::Uuid;
-    use tokio::sync::mpsc;
+    use std::sync::Arc;
+    use tokio::sync::{broadcast, mpsc};
 
     #[tokio::test]
     async fn executes_write_read() {
         let (scheduled_queries_channel_tx, mut scheduled_queries_channel_rx) = mpsc::channel(32);
         let (completed_queries_channel_tx, mut completed_queries_channel_rx) = mpsc::channel(32);
-        let (query_result_channel_tx, mut query_result_channel_rx) = mpsc::channel(32);
+        let (query_result_channel_tx, mut query_result_channel_rx) = broadcast::channel(32);
+        let arc_query_result_channel_tx = Arc::new(query_result_channel_tx);
 
         let mut es = ExecutorService::new(
             scheduled_queries_channel_rx,
             completed_queries_channel_tx,
-            query_result_channel_tx,
+            arc_query_result_channel_tx,
         )
         .unwrap();
 

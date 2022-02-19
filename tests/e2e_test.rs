@@ -2,8 +2,9 @@
 // use calvinite::executor::ExecutorService;
 // use calvinite::scheduler::SchedulerService;
 // use calvinite::sequencer::SequencerService;
+// use std::sync::Arc;
 // use tokio::net::TcpListener;
-// use tokio::sync::mpsc;
+// use tokio::sync::{broadcast, mpsc};
 // use tonic::transport::Server;
 //
 // #[tokio::test]
@@ -12,7 +13,9 @@
 //     let (sequenced_queries_channel_tx, mut sequenced_queries_channel_rx) = mpsc::channel(32);
 //     let (scheduled_queries_channel_tx, mut scheduled_queries_channel_rx) = mpsc::channel(32);
 //     let (completed_queries_channel_tx, mut completed_queries_channel_rx) = mpsc::channel(32);
-//     let (query_result_channel_tx, mut query_result_channel_rx) = mpsc::channel(32);
+//     let (query_result_channel_tx, _) = broadcast::channel(32);
+//     let arc_query_result_channel_tx = Arc::new(query_result_channel_tx);
+//     // let (query_result_channel_tx, mut query_result_channel_rx) = mpsc::channel(32);
 //
 //     // Setup Sequencer
 //     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -21,7 +24,10 @@
 //
 //     let listener_http_address = format!("http://127.0.0.1:{}", listener_address.port());
 //
-//     let sequencer_service = SequencerService::new(sequenced_queries_channel_tx);
+//     let sequencer_service = SequencerService::new(
+//         sequenced_queries_channel_tx,
+//         arc_query_result_channel_tx.clone(),
+//     );
 //
 //     tokio::spawn(async move {
 //         Server::builder()

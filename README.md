@@ -11,3 +11,4 @@ the [Calvin](http://cs.yale.edu/homes/thomson/publications/calvin-sigmod12.pdf) 
 - Allows number of partitions and number of replicas to be changed while remaining available
 - [Open Tracing](https://opentracing.io/) integration
 - Builtin online backup that streams logfiles to S3 (ala [Litestream](https://litestream.io/))
+- HTTP/1.1 client using GRPC Web
