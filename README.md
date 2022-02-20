@@ -1,5 +1,7 @@
 # `calvinite`
 
+[![Rust](https://github.com/epellis/calvinite/actions/workflows/rust.yml/badge.svg)](https://github.com/epellis/calvinite/actions/workflows/rust.yml)
+
 Calvinite is a Work In Progress (WIP) Distributed SQL Database based on
 the [Calvin](http://cs.yale.edu/homes/thomson/publications/calvin-sigmod12.pdf) paper.
 

@@ -3,7 +3,6 @@ use sqlparser::ast;
 use sqlparser::ast::Expr;
 use sqlparser::dialect::GenericDialect;
 use sqlparser::parser::Parser;
-use std::os::macos::raw::stat;
 
 /// Stores an analyzed SQL string made of many SQL Statements.
 #[derive(Clone, Debug)]
