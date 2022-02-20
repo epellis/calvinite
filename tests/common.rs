@@ -21,9 +21,9 @@ pub struct CalvinSingleInstance {
 impl CalvinSingleInstance {
     pub async fn new() -> Self {
         // Setup Channels
-        let (sequenced_queries_channel_tx, mut sequenced_queries_channel_rx) = mpsc::channel(32);
-        let (scheduled_queries_channel_tx, mut scheduled_queries_channel_rx) = mpsc::channel(32);
-        let (completed_queries_channel_tx, mut completed_queries_channel_rx) = mpsc::channel(32);
+        let (sequenced_queries_channel_tx, sequenced_queries_channel_rx) = mpsc::channel(32);
+        let (scheduled_queries_channel_tx, scheduled_queries_channel_rx) = mpsc::channel(32);
+        let (completed_queries_channel_tx, completed_queries_channel_rx) = mpsc::channel(32);
         let (query_result_channel_tx, _) = broadcast::channel(32);
         let arc_query_result_channel_tx = Arc::new(query_result_channel_tx);
 

@@ -215,14 +215,14 @@ impl ExecutorService {
 mod tests {
     use crate::calvinite_tonic::{RecordStorage, RunStmtRequestWithUuid};
     use crate::executor::ExecutorService;
-    use crate::scheduler::SchedulerService;
-    use sqlparser::ast::DataType::Uuid;
+    
+    
     use std::sync::Arc;
     use tokio::sync::{broadcast, mpsc};
 
     #[tokio::test]
     async fn executes_write_read() {
-        let (scheduled_queries_channel_tx, mut scheduled_queries_channel_rx) = mpsc::channel(32);
+        let (scheduled_queries_channel_tx, scheduled_queries_channel_rx) = mpsc::channel(32);
         let (completed_queries_channel_tx, mut completed_queries_channel_rx) = mpsc::channel(32);
         let (query_result_channel_tx, mut query_result_channel_rx) = broadcast::channel(32);
         let arc_query_result_channel_tx = Arc::new(query_result_channel_tx);

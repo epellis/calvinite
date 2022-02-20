@@ -1,4 +1,4 @@
-use crate::calvinite_tonic::{RunStmtRequest, RunStmtRequestWithUuid};
+use crate::calvinite_tonic::{RunStmtRequestWithUuid};
 use crate::common::Record;
 use crate::lock_manager::*;
 use crate::stmt_analyzer;
@@ -48,7 +48,7 @@ impl SchedulerService {
     ) -> anyhow::Result<()> {
         let txn_uuid = Uuid::parse_str(&req.uuid)?;
 
-        self.pending_txns.insert(txn_uuid.clone(), req.clone());
+        self.pending_txns.insert(txn_uuid, req.clone());
 
         let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query.clone())?;
 
@@ -90,14 +90,14 @@ impl SchedulerService {
 mod tests {
     use crate::calvinite_tonic::RunStmtRequestWithUuid;
     use crate::scheduler::SchedulerService;
-    use sqlparser::ast::DataType::Uuid;
+    
     use tokio::sync::mpsc;
 
     #[tokio::test]
     async fn serve_schedules_first_txn() {
-        let (sequenced_queries_channel_tx, mut sequenced_queries_channel_rx) = mpsc::channel(32);
+        let (sequenced_queries_channel_tx, sequenced_queries_channel_rx) = mpsc::channel(32);
         let (scheduled_queries_channel_tx, mut scheduled_queries_channel_rx) = mpsc::channel(32);
-        let (completed_queries_channel_tx, mut completed_queries_channel_rx) = mpsc::channel(32);
+        let (completed_queries_channel_tx, completed_queries_channel_rx) = mpsc::channel(32);
 
         let mut ss = SchedulerService::new(
             sequenced_queries_channel_rx,

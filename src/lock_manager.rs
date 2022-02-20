@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use std::future::pending;
+
 use std::hash::Hash;
-use std::sync::Mutex;
+
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -23,16 +23,15 @@ impl<R: Hash + Eq + Clone> LockManager<R> {
     pub fn put_txn(&mut self, txn_uuid: Uuid, record_locks: Vec<R>) {
         // Store all held record locks for this txn so we know what to free when txn completes
         self.all_record_locks_for_txn
-            .insert(txn_uuid.clone(), record_locks.clone());
+            .insert(txn_uuid, record_locks.clone());
 
         // Add this txn as pending to all impacted record locks
         for record_lock in record_locks.clone().into_iter() {
             let mut pending_txn_for_record_lock = self
                 .ordered_pending_txns_for_record_lock
-                .remove(&record_lock)
-                .unwrap_or(Vec::new());
+                .remove(&record_lock).unwrap_or_default();
 
-            pending_txn_for_record_lock.push(txn_uuid.clone());
+            pending_txn_for_record_lock.push(txn_uuid);
 
             self.ordered_pending_txns_for_record_lock
                 .insert(record_lock, pending_txn_for_record_lock);
@@ -40,7 +39,7 @@ impl<R: Hash + Eq + Clone> LockManager<R> {
 
         // Store a list of impacted record locks that are already held and we'll need before we can start this txn
         let pending_record_locks_for_txn: Vec<R> = record_locks
-            .clone()
+            
             .into_iter()
             .filter(|record_lock| {
                 let pending_txns_for_record_lock = self
@@ -65,7 +64,7 @@ impl<R: Hash + Eq + Clone> LockManager<R> {
             .pending_record_locks_for_txn
             .iter()
             .filter(|(_, record_locks)| record_locks.is_empty())
-            .map(|(uuid, _)| uuid.clone())
+            .map(|(uuid, _)| *uuid)
             .collect();
 
         for ready_txn_uuid in ready_txns.iter() {
@@ -81,8 +80,7 @@ impl<R: Hash + Eq + Clone> LockManager<R> {
         for record_lock in record_locks_held_by_txn.iter() {
             let mut pending_txns_for_record_lock = self
                 .ordered_pending_txns_for_record_lock
-                .remove(record_lock)
-                .unwrap_or(Vec::new());
+                .remove(record_lock).unwrap_or_default();
 
             // Invariant: the first txn for this lock should always be this txn
             assert_eq!(pending_txns_for_record_lock[0], uuid);

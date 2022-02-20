@@ -48,7 +48,7 @@ impl SqlStmt {
                 ast::Query {
                     body: ast::SetExpr::Select(select),
                     ..
-                } => match *select.clone() {
+                } => match *select {
                     ast::Select {
                         selection: Some(selection),
                         ..
