@@ -1,3 +1,6 @@
+extern crate core;
+
+use calvinite::calvinite_tonic::run_stmt_response::Result::Success;
 use calvinite::calvinite_tonic::sequencer_grpc_service_client::SequencerGrpcServiceClient;
 use calvinite::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcServiceServer;
 use calvinite::calvinite_tonic::{RecordStorage, RunStmtRequest};
@@ -87,6 +90,11 @@ impl CalvinSingleInstance {
             query: query.to_string(),
         });
         let res = self.client.run_stmt(req).await.unwrap();
-        assert_eq!(res.into_inner().results, expected_results);
+
+        if let Some(Success(result)) = res.into_inner().result {
+            assert_eq!(result.results, expected_results);
+        } else {
+            panic!("Results were supposed to be successful")
+        }
     }
 }

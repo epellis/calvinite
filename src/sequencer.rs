@@ -1,6 +1,7 @@
 use crate::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcService;
 use crate::calvinite_tonic::{RunStmtRequest, RunStmtRequestWithUuid, RunStmtResponse};
 
+use crate::calvinite_tonic::run_stmt_response::Result::Success;
 use std::sync::Arc;
 use tokio::sync;
 use tokio::sync::mpsc;
@@ -46,8 +47,10 @@ impl SequencerGrpcService for SequencerService {
         let mut completed_queries_rx = self.completed_queries_channel.subscribe();
 
         while let Ok(completed_query) = completed_queries_rx.recv().await {
-            if completed_query.uuid == txn_uuid {
-                return Ok(Response::new(completed_query));
+            if let Some(Success(ref results)) = completed_query.result {
+                if results.uuid == txn_uuid {
+                    return Ok(Response::new(completed_query.clone()));
+                }
             }
         }
         Err(tonic::Status::new(tonic::Code::Internal, "Unreachable"))
@@ -56,9 +59,10 @@ impl SequencerGrpcService for SequencerService {
 
 #[cfg(test)]
 mod tests {
+    use crate::calvinite_tonic::run_stmt_response::Result::Success;
     use crate::calvinite_tonic::sequencer_grpc_service_client::SequencerGrpcServiceClient;
     use crate::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcServiceServer;
-    use crate::calvinite_tonic::{RunStmtRequest, RunStmtResponse};
+    use crate::calvinite_tonic::{RunStmtRequest, RunStmtResponse, RunStmtResults};
     use crate::sequencer::SequencerService;
     use std::sync::Arc;
     use tokio::net::TcpListener;
@@ -112,8 +116,10 @@ mod tests {
 
         // 3: Executor sends back results
         let mocked_run_stmt_response = RunStmtResponse {
-            uuid: run_stmt_request_from_channel.uuid,
-            results: Vec::new(),
+            result: Some(Success(RunStmtResults {
+                uuid: run_stmt_request_from_channel.uuid,
+                results: Vec::new(),
+            })),
         };
 
         arc_query_result_channel_tx.send(mocked_run_stmt_response.clone());

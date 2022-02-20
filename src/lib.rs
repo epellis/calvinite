@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod common;
 pub mod executor;
 pub mod lock_manager;

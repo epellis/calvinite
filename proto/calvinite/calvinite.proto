@@ -12,8 +12,24 @@ message RunStmtRequestWithUUID {
 }
 
 message RunStmtResponse {
+  oneof result {
+    RunStmtResults success = 1;
+    RunStmtErr failure = 2;
+  }
+}
+
+message RunStmtResults {
   string uuid = 1;
   repeated RecordStorage results = 2;
+}
+
+message RunStmtErr {
+  // Inspired by sqlite error codes: https://www.sqlite.org/rescode.html
+  //  enum ErrorCode {
+  //
+  //  }
+  //  ErrorCode error_code = 1;
+  string detailed_message = 2;
 }
 
 service SequencerGrpcService {

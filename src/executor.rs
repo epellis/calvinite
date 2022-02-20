@@ -1,4 +1,7 @@
-use crate::calvinite_tonic::{RecordStorage, RunStmtRequestWithUuid, RunStmtResponse};
+use crate::calvinite_tonic::run_stmt_response::Result::Success;
+use crate::calvinite_tonic::{
+    RecordStorage, RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
+};
 use crate::common::Record;
 use crate::stmt_analyzer;
 use crate::stmt_analyzer::SqlStmt;
@@ -49,8 +52,10 @@ impl ExecutorService {
             self.completed_queries_channel.send(completed_req).await?;
 
             let stmt_response = RunStmtResponse {
-                uuid: txn_uuid,
-                results: query_results,
+                result: Some(Success(RunStmtResults {
+                    uuid: txn_uuid,
+                    results: query_results,
+                })),
             };
 
             self.query_result_channel.send(stmt_response);
@@ -216,6 +221,7 @@ mod tests {
     use crate::calvinite_tonic::{RecordStorage, RunStmtRequestWithUuid};
     use crate::executor::ExecutorService;
 
+    use crate::calvinite_tonic::run_stmt_response::Result::Success;
     use std::sync::Arc;
     use tokio::sync::{broadcast, mpsc};
 
@@ -252,7 +258,11 @@ mod tests {
         assert_eq!(stmt1, completed_query1);
 
         let query_results1 = query_result_channel_rx.recv().await.unwrap();
-        assert_eq!(query_results1.results, Vec::new());
+        if let Some(Success(result)) = query_results1.result {
+            assert_eq!(result.results, Vec::new());
+        } else {
+            panic!("Should always be successful")
+        }
 
         let stmt2_uuid = uuid::Uuid::new_v4();
         let stmt2 = RunStmtRequestWithUuid {
@@ -269,6 +279,10 @@ mod tests {
         assert_eq!(stmt2, completed_query2);
 
         let query_results2 = query_result_channel_rx.recv().await.unwrap();
-        assert_eq!(query_results2.results, vec![RecordStorage { val: 2 }]);
+        if let Some(Success(result)) = query_results2.result {
+            assert_eq!(result.results, vec![RecordStorage { val: 2 }]);
+        } else {
+            panic!("Should always be successful")
+        }
     }
 }
