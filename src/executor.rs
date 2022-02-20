@@ -215,8 +215,7 @@ impl ExecutorService {
 mod tests {
     use crate::calvinite_tonic::{RecordStorage, RunStmtRequestWithUuid};
     use crate::executor::ExecutorService;
-    
-    
+
     use std::sync::Arc;
     use tokio::sync::{broadcast, mpsc};
 

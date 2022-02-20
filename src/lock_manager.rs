@@ -29,7 +29,8 @@ impl<R: Hash + Eq + Clone> LockManager<R> {
         for record_lock in record_locks.clone().into_iter() {
             let mut pending_txn_for_record_lock = self
                 .ordered_pending_txns_for_record_lock
-                .remove(&record_lock).unwrap_or_default();
+                .remove(&record_lock)
+                .unwrap_or_default();
 
             pending_txn_for_record_lock.push(txn_uuid);
 
@@ -39,7 +40,6 @@ impl<R: Hash + Eq + Clone> LockManager<R> {
 
         // Store a list of impacted record locks that are already held and we'll need before we can start this txn
         let pending_record_locks_for_txn: Vec<R> = record_locks
-            
             .into_iter()
             .filter(|record_lock| {
                 let pending_txns_for_record_lock = self
@@ -80,7 +80,8 @@ impl<R: Hash + Eq + Clone> LockManager<R> {
         for record_lock in record_locks_held_by_txn.iter() {
             let mut pending_txns_for_record_lock = self
                 .ordered_pending_txns_for_record_lock
-                .remove(record_lock).unwrap_or_default();
+                .remove(record_lock)
+                .unwrap_or_default();
 
             // Invariant: the first txn for this lock should always be this txn
             assert_eq!(pending_txns_for_record_lock[0], uuid);

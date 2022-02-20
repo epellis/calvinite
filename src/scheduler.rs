@@ -1,4 +1,4 @@
-use crate::calvinite_tonic::{RunStmtRequestWithUuid};
+use crate::calvinite_tonic::RunStmtRequestWithUuid;
 use crate::common::Record;
 use crate::lock_manager::*;
 use crate::stmt_analyzer;
@@ -90,7 +90,7 @@ impl SchedulerService {
 mod tests {
     use crate::calvinite_tonic::RunStmtRequestWithUuid;
     use crate::scheduler::SchedulerService;
-    
+
     use tokio::sync::mpsc;
 
     #[tokio::test]

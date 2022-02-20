@@ -1,10 +1,9 @@
 use crate::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcService;
 use crate::calvinite_tonic::{RunStmtRequest, RunStmtRequestWithUuid, RunStmtResponse};
 
-
-use std::sync::{Arc};
+use std::sync::Arc;
 use tokio::sync;
-use tokio::sync::{mpsc};
+use tokio::sync::mpsc;
 use tonic::Response;
 use uuid::Uuid;
 
@@ -61,7 +60,7 @@ mod tests {
     use crate::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcServiceServer;
     use crate::calvinite_tonic::{RunStmtRequest, RunStmtResponse};
     use crate::sequencer::SequencerService;
-    use std::sync::{Arc};
+    use std::sync::Arc;
     use tokio::net::TcpListener;
     use tokio::sync::{broadcast, mpsc};
     use tonic::transport::Server;
