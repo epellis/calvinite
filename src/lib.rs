@@ -4,6 +4,7 @@ pub mod common;
 pub mod executor;
 pub mod lock_manager;
 pub mod scheduler;
+pub mod scheduler_old;
 pub mod sequencer;
 pub mod stmt_analyzer;
 
