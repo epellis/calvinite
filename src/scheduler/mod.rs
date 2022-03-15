@@ -24,20 +24,28 @@ impl Default for SchedulerData {
     }
 }
 
+#[async_trait::async_trait]
+pub trait Scheduler {
+    async fn submit_txn(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse>;
+}
+
 #[derive(Debug, Clone)]
-pub struct Scheduler<E> {
+pub struct SchedulerImpl<E> {
     inner: Arc<Mutex<SchedulerData>>,
     executor: E,
 }
 
-impl<E: Executor + Debug + Clone> Scheduler<E> {
+impl<E: Executor + Debug + Clone> SchedulerImpl<E> {
     pub fn new(executor: E) -> Self {
         let inner = Arc::new(Mutex::new(SchedulerData::default()));
         Self { inner, executor }
     }
+}
 
+#[async_trait::async_trait]
+impl<E: Executor + Debug + Clone + Send + Sync> Scheduler for SchedulerImpl<E> {
     // Submits a txn for execution. Txn will be run when it is safe. Returns result of txn.
-    pub async fn submit_txn(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse> {
+    async fn submit_txn(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse> {
         let txn_uuid = Uuid::parse_str(&req.uuid)?;
         let (sender, receiver) = sync::oneshot::channel();
 
@@ -90,6 +98,7 @@ mod tests {
         RunStmtRequest, RecordStorage, RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
     };
     use crate::executor::Executor;
+    use crate::scheduler::SchedulerImpl;
     use crate::scheduler::Scheduler;
 
     #[derive(Clone, Debug, Default)]
@@ -115,7 +124,7 @@ mod tests {
     async fn scheduler_executes_single_stmt() {
         let executor = MockExecutor::default();
 
-        let scheduler = Scheduler::new(executor);
+        let scheduler = SchedulerImpl::new(executor);
 
         let txn_uuid = uuid::Uuid::new_v4().to_string();
 
