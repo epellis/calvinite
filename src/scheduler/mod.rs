@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use tokio::sync;
 use uuid::Uuid;
-use crate::executor::{Executor, ExecutorService};
+use crate::executor::Executor;
 use crate::scheduler::lock_manager::LockManager;
 use crate::stmt_analyzer;
 
@@ -85,11 +85,11 @@ impl<E: Executor + Debug + Clone> Scheduler<E> {
 
 #[cfg(test)]
 mod tests {
-    use crate::executor::{Executor, ExecutorService};
     use crate::calvinite_tonic::run_stmt_response::Result::Success;
     use crate::calvinite_tonic::{
         RunStmtRequest, RecordStorage, RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
     };
+    use crate::executor::Executor;
     use crate::scheduler::Scheduler;
 
     #[derive(Clone, Debug, Default)]
