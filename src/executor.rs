@@ -13,13 +13,9 @@ use std::sync::Arc;
 use tokio::sync;
 use tokio::sync::mpsc;
 
-#[derive(Debug, Clone)]
-pub struct Executor {}
-
-impl Executor {
-    pub async fn execute(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse> {
-        todo!()
-    }
+#[async_trait::async_trait]
+pub trait Executor {
+    async fn execute(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse>;
 }
 
 pub struct ExecutorService {

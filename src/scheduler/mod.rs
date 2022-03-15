@@ -25,13 +25,13 @@ impl Default for SchedulerData {
 }
 
 #[derive(Debug, Clone)]
-pub struct Scheduler {
+pub struct Scheduler<E> {
     inner: Arc<Mutex<SchedulerData>>,
-    executor: Executor,
+    executor: E,
 }
 
-impl Scheduler {
-    pub fn new(executor: Executor) -> Self {
+impl<E: Executor + Debug + Clone> Scheduler<E> {
+    pub fn new(executor: E) -> Self {
         let inner = Arc::new(Mutex::new(SchedulerData::default()));
         Self { inner, executor }
     }
@@ -80,5 +80,56 @@ impl Scheduler {
         }
 
         Ok(res)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::executor::{Executor, ExecutorService};
+    use crate::calvinite_tonic::run_stmt_response::Result::Success;
+    use crate::calvinite_tonic::{
+        RunStmtRequest, RecordStorage, RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
+    };
+    use crate::scheduler::Scheduler;
+
+    #[derive(Clone, Debug, Default)]
+    struct MockExecutor {}
+
+    #[async_trait::async_trait]
+    impl Executor for MockExecutor {
+        async fn execute(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse> {
+            let txn_uuid = req.uuid.clone();
+
+            let stmt_response = RunStmtResponse {
+                result: Some(Success(RunStmtResults {
+                    uuid: txn_uuid,
+                    results: vec![],
+                })),
+            };
+
+            Ok(stmt_response)
+        }
+    }
+
+    #[tokio::test]
+    async fn scheduler_executes_single_stmt() {
+        let executor = MockExecutor::default();
+
+        let scheduler = Scheduler::new(executor);
+
+        let txn_uuid = uuid::Uuid::new_v4().to_string();
+
+        let req = RunStmtRequestWithUuid {
+            query: "".to_string(),
+            uuid: txn_uuid,
+        };
+
+        let res = scheduler.submit_txn(req).await.unwrap();
+
+        if let Some(Success(result)) = res.result {
+            assert_eq!(result.results, vec![]);
+        } else {
+            panic!("Results were supposed to be successful")
+        }
     }
 }
