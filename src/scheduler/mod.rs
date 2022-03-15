@@ -2,58 +2,83 @@ use crate::calvinite_tonic::{RunStmtRequestWithUuid, RunStmtResponse};
 use crate::common::Record;
 use crate::stmt_analyzer::SqlStmt;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use tokio::sync;
+use uuid::Uuid;
+use crate::executor::{Executor, ExecutorService};
+use crate::scheduler::lock_manager::LockManager;
+use crate::stmt_analyzer;
 
-#[derive(Default)]
+pub mod lock_manager;
+
+#[derive(Debug)]
+struct SchedulerData {
+    lock_manager: LockManager<Record>,
+    pending_txns: HashMap<Uuid, sync::oneshot::Sender<()>>,
+}
+
+impl Default for SchedulerData {
+    fn default() -> Self {
+        Self { lock_manager: LockManager::new(), pending_txns: HashMap::default() }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Scheduler {
-    locks_by_record: Mutex<HashMap<Record, Arc<sync::Mutex<()>>>>,
+    inner: Arc<Mutex<SchedulerData>>,
+    executor: Executor,
 }
 
 impl Scheduler {
-    pub async fn schedule_stmt(
-        &self,
-        stmt: RunStmtRequestWithUuid,
-    ) -> anyhow::Result<RunStmtResponse> {
-        let locks_for_txn = self.get_locks_for_txn(stmt)?;
-
-        // Acquire all permits
-        let mutex_guards = locks_for_txn.into_iter().map(|l| l.lock().await?);
-
-        Ok(todo!())
+    pub fn new(executor: Executor) -> Self {
+        let inner = Arc::new(Mutex::new(SchedulerData::default()));
+        Self { inner, executor }
     }
 
-    fn get_locks_for_txn(
-        &self,
-        stmt: RunStmtRequestWithUuid,
-    ) -> anyhow::Result<Vec<Arc<sync::Mutex<()>>>> {
-        let sql_stmt = SqlStmt::from_string(stmt.query.clone())?;
+    // Submits a txn for execution. Txn will be run when it is safe. Returns result of txn.
+    pub async fn submit_txn(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse> {
+        let txn_uuid = Uuid::parse_str(&req.uuid)?;
+        let (sender, receiver) = sync::oneshot::channel();
 
-        let locked_records = [
-            &sql_stmt.inserted_records[..],
-            &sql_stmt.updated_records[..],
-            &sql_stmt.selected_records[..],
-        ]
-        .concat();
+        let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query.clone())?;
+        let impacted_records = sql_stmt.inserted_records;
 
-        let locks_for_records: Vec<Arc<sync::Mutex<()>>> = locked_records
-            .clone()
-            .into_iter()
-            .map(|r| self.get_lock(r))
-            .collect();
+        dbg!(
+            "Impacted Records of {:?} <-> {:?} are {:?}",
+            txn_uuid,
+            req.query.clone(),
+            impacted_records.clone()
+        );
 
-        Ok(locks_for_records)
-    }
+        {
+            let mut inner = self.inner.lock().unwrap();
 
-    fn get_lock(&self, record: Record) -> Arc<sync::Mutex<()>> {
-        let mut locks_by_record = self.locks_by_record.lock().unwrap();
+            inner.pending_txns.insert(txn_uuid, sender);
+            inner.lock_manager.put_txn(txn_uuid, impacted_records);
 
-        if let Some(lock) = locks_by_record.get(&record) {
-            lock.clone()
-        } else {
-            let lock = Arc::new(sync::Mutex::new(()));
-            locks_by_record.insert(record, lock.clone());
-            lock
+            let pending_txns = inner.lock_manager.pop_ready_txns();
+            for pending_txn in pending_txns {
+                let txn_notifier = inner.pending_txns.remove(&pending_txn).unwrap();
+                txn_notifier.send(()).unwrap();
+            }
         }
+
+        let _ = receiver.await?;
+
+        let res = self.executor.execute(req).await?;
+
+        {
+            let mut inner = self.inner.lock().unwrap();
+
+            inner.lock_manager.complete_txn(txn_uuid);
+            let pending_txns = inner.lock_manager.pop_ready_txns();
+            for pending_txn in pending_txns {
+                let txn_notifier = inner.pending_txns.remove(&pending_txn).unwrap();
+                txn_notifier.send(()).unwrap();
+            }
+        }
+
+        Ok(res)
     }
 }

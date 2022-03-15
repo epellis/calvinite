@@ -111,7 +111,7 @@ impl<R: Hash + Eq + Clone> LockManager<R> {
 
 #[cfg(test)]
 mod tests {
-    use crate::lock_manager::LockManager;
+    use crate::scheduler::lock_manager::LockManager;
     use uuid::Uuid;
 
     #[test]

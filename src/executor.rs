@@ -13,6 +13,15 @@ use std::sync::Arc;
 use tokio::sync;
 use tokio::sync::mpsc;
 
+#[derive(Debug, Clone)]
+pub struct Executor {}
+
+impl Executor {
+    pub async fn execute(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse> {
+        todo!()
+    }
+}
+
 pub struct ExecutorService {
     scheduled_queries_channel: mpsc::Receiver<RunStmtRequestWithUuid>,
     completed_queries_channel: mpsc::Sender<RunStmtRequestWithUuid>,
@@ -237,7 +246,7 @@ mod tests {
             completed_queries_channel_tx,
             arc_query_result_channel_tx,
         )
-        .unwrap();
+            .unwrap();
 
         tokio::spawn(async move {
             es.serve().await.unwrap();
