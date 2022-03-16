@@ -34,13 +34,18 @@ impl Default for Executor {
     fn default() -> Self {
         let tmp_dir = tempfile::tempdir().unwrap();
         dbg!("Creating Sled DB at {}", tmp_dir.path().to_str().unwrap());
-        Self { storage: sled::open(tmp_dir.path()).unwrap() }
+        Self {
+            storage: sled::open(tmp_dir.path()).unwrap(),
+        }
     }
 }
 
 #[cfg_attr(test, faux::methods)]
 impl Executor {
-    pub async fn execute(&self, req: RunStmtRequestWithUuid) -> Result<RunStmtResponse, ExecutorErr> {
+    pub async fn execute(
+        &self,
+        req: RunStmtRequestWithUuid,
+    ) -> Result<RunStmtResponse, ExecutorErr> {
         let txn_uuid = req.uuid.clone();
 
         let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query.clone()).unwrap();
@@ -51,8 +56,10 @@ impl Executor {
         for select_record in sql_stmt.selected_records.iter() {
             let record_bytes = self
                 .storage
-                .get(bincode::serialize(select_record).unwrap()).unwrap()
-                .ok_or_else(|| anyhow!("no record exists for {}", select_record.id)).unwrap();
+                .get(bincode::serialize(select_record).unwrap())
+                .unwrap()
+                .ok_or_else(|| anyhow!("no record exists for {}", select_record.id))
+                .unwrap();
 
             let record_bytes_buf = bytes::Bytes::from(record_bytes.to_vec());
 
@@ -68,8 +75,10 @@ impl Executor {
         for update_record in sql_stmt.updated_records.iter() {
             let record_bytes = self
                 .storage
-                .get(bincode::serialize(update_record).unwrap()).unwrap()
-                .ok_or_else(|| anyhow!("no record exists for {}", update_record.id)).unwrap();
+                .get(bincode::serialize(update_record).unwrap())
+                .unwrap()
+                .ok_or_else(|| anyhow!("no record exists for {}", update_record.id))
+                .unwrap();
 
             let record_bytes_buf = bytes::Bytes::from(record_bytes.to_vec());
 
@@ -85,15 +94,18 @@ impl Executor {
         dbg!("Record Cache Before Execution: {:?}", record_cache.clone());
 
         // Execute the query
-        let results = Self::execute_stmt(&mut record_cache, sql_stmt.ast_stmts.first().unwrap()).unwrap();
+        let results =
+            Self::execute_stmt(&mut record_cache, sql_stmt.ast_stmts.first().unwrap()).unwrap();
 
         dbg!("Record Cache After Execution: {:?}", record_cache.clone());
 
         // Flush dirty records
         for (key, value) in record_cache.into_iter() {
             if key.is_dirty {
-                self.storage
-                    .insert(bincode::serialize(&key.record).unwrap(), value.encode_to_vec());
+                self.storage.insert(
+                    bincode::serialize(&key.record).unwrap(),
+                    value.encode_to_vec(),
+                );
             }
         }
 
@@ -201,9 +213,9 @@ mod tests {
     use crate::calvinite_tonic::{RecordStorage, RunStmtRequestWithUuid};
 
     use crate::calvinite_tonic::run_stmt_response::Result::Success;
+    use crate::executor::Executor;
     use std::sync::Arc;
     use tokio::sync::{broadcast, mpsc};
-    use crate::executor::{Executor};
 
     #[tokio::test]
     async fn executes_write_read() {

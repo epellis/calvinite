@@ -1,14 +1,14 @@
 use crate::calvinite_tonic::{RunStmtRequestWithUuid, RunStmtResponse};
 use crate::common::Record;
+use crate::executor::Executor;
+use crate::scheduler::lock_manager::LockManager;
+use crate::stmt_analyzer;
 use crate::stmt_analyzer::SqlStmt;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use tokio::sync;
 use uuid::Uuid;
-use crate::executor::Executor;
-use crate::scheduler::lock_manager::LockManager;
-use crate::stmt_analyzer;
 
 pub mod lock_manager;
 
@@ -23,7 +23,10 @@ struct SchedulerData {
 
 impl Default for SchedulerData {
     fn default() -> Self {
-        Self { lock_manager: LockManager::new(), pending_txns: HashMap::default() }
+        Self {
+            lock_manager: LockManager::new(),
+            pending_txns: HashMap::default(),
+        }
     }
 }
 
@@ -52,7 +55,10 @@ impl Scheduler {
     }
 
     // Submits a txn for execution. Txn will be run when it is safe. Returns result of txn.
-    pub async fn submit_txn(&self, req: RunStmtRequestWithUuid) -> Result<RunStmtResponse, SchedulerErr> {
+    pub async fn submit_txn(
+        &self,
+        req: RunStmtRequestWithUuid,
+    ) -> Result<RunStmtResponse, SchedulerErr> {
         let txn_uuid = Uuid::parse_str(&req.uuid).unwrap();
         let (sender, receiver) = sync::oneshot::channel();
 
@@ -100,13 +106,13 @@ impl Scheduler {
 
 #[cfg(test)]
 mod tests {
-    use faux::when;
     use crate::calvinite_tonic::run_stmt_response::Result::Success;
     use crate::calvinite_tonic::{
-        RunStmtRequest, RecordStorage, RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
+        RecordStorage, RunStmtRequest, RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
     };
     use crate::executor::Executor;
     use crate::scheduler::Scheduler;
+    use faux::when;
 
     #[tokio::test]
     async fn scheduler_executes_single_stmt() {

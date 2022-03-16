@@ -1,13 +1,13 @@
-use std::fmt::Debug;
 use crate::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcService;
 use crate::calvinite_tonic::{RunStmtRequest, RunStmtRequestWithUuid, RunStmtResponse};
+use std::fmt::Debug;
 
 use crate::calvinite_tonic::run_stmt_response::Result::Success;
+use crate::scheduler::Scheduler;
 use std::sync::Arc;
 use tokio::sync;
 use tonic::Response;
 use uuid::Uuid;
-use crate::scheduler::Scheduler;
 
 #[derive(Debug, Default)]
 pub struct Sequencer {
@@ -30,12 +30,14 @@ impl SequencerGrpcService for Sequencer {
 
         let txn_uuid = Uuid::new_v4().to_string();
 
-        let completed_txn = self.scheduler
+        let completed_txn = self
+            .scheduler
             .submit_txn(RunStmtRequestWithUuid {
                 query: run_stmt_request.query.clone(),
                 uuid: txn_uuid.clone(),
             })
-            .await.unwrap();
+            .await
+            .unwrap();
 
         Ok(Response::new(completed_txn))
     }
@@ -43,18 +45,18 @@ impl SequencerGrpcService for Sequencer {
 
 #[cfg(test)]
 mod tests {
-    use faux::when;
-    use tokio::net::TcpListener;
-    use tonic::Request;
-    use tonic::transport::Server;
     use crate::calvinite_tonic::run_stmt_response::Result::Success;
     use crate::calvinite_tonic::sequencer_grpc_service_client::SequencerGrpcServiceClient;
     use crate::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcServiceServer;
     use crate::calvinite_tonic::{
-        RunStmtRequest, RecordStorage, RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
+        RecordStorage, RunStmtRequest, RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
     };
     use crate::scheduler::Scheduler;
     use crate::sequencer::Sequencer;
+    use faux::when;
+    use tokio::net::TcpListener;
+    use tonic::transport::Server;
+    use tonic::Request;
 
     #[tokio::test]
     async fn serve() {

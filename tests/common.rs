@@ -4,6 +4,7 @@ use calvinite::calvinite_tonic::run_stmt_response::Result::Success;
 use calvinite::calvinite_tonic::sequencer_grpc_service_client::SequencerGrpcServiceClient;
 use calvinite::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcServiceServer;
 use calvinite::calvinite_tonic::{RecordStorage, RunStmtRequest};
+use calvinite::sequencer::Sequencer;
 use std::sync::Arc;
 use std::thread;
 use tokio::net::TcpListener;
@@ -12,7 +13,6 @@ use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
 use tonic::transport::{Channel, Server};
 use tonic::Request;
-use calvinite::sequencer::Sequencer;
 
 pub struct CalvinSingleInstance {
     client: SequencerGrpcServiceClient<Channel>,
@@ -36,7 +36,8 @@ impl CalvinSingleInstance {
                 .unwrap();
         });
 
-        let client = SequencerGrpcServiceClient::connect(listener_http_address.clone()).await
+        let client = SequencerGrpcServiceClient::connect(listener_http_address.clone())
+            .await
             .unwrap();
 
         Self { client }
