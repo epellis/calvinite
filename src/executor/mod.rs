@@ -207,7 +207,7 @@ mod tests {
 
     #[tokio::test]
     async fn executes_write_read() {
-        let mut ex = Executor::default();
+        let ex = Executor::default();
 
         let stmt1_uuid = uuid::Uuid::new_v4();
         let stmt1 = RunStmtRequestWithUuid {

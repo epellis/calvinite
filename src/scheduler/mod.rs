@@ -12,6 +12,9 @@ use crate::stmt_analyzer;
 
 pub mod lock_manager;
 
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum SchedulerErr {}
+
 #[derive(Debug)]
 struct SchedulerData {
     lock_manager: LockManager<Record>,
@@ -24,12 +27,24 @@ impl Default for SchedulerData {
     }
 }
 
+#[cfg_attr(test, faux::create)]
 #[derive(Debug, Clone)]
 pub struct Scheduler {
     inner: Arc<Mutex<SchedulerData>>,
     executor: Executor,
 }
 
+#[cfg_attr(test, faux::methods)]
+impl Default for Scheduler {
+    fn default() -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(SchedulerData::default())),
+            executor: Executor::default(),
+        }
+    }
+}
+
+#[cfg_attr(test, faux::methods)]
 impl Scheduler {
     pub fn new(executor: Executor) -> Self {
         let inner = Arc::new(Mutex::new(SchedulerData::default()));
@@ -37,11 +52,11 @@ impl Scheduler {
     }
 
     // Submits a txn for execution. Txn will be run when it is safe. Returns result of txn.
-    pub async fn submit_txn(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse> {
-        let txn_uuid = Uuid::parse_str(&req.uuid)?;
+    pub async fn submit_txn(&self, req: RunStmtRequestWithUuid) -> Result<RunStmtResponse, SchedulerErr> {
+        let txn_uuid = Uuid::parse_str(&req.uuid).unwrap();
         let (sender, receiver) = sync::oneshot::channel();
 
-        let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query.clone())?;
+        let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query.clone()).unwrap();
         let impacted_records = sql_stmt.inserted_records;
 
         dbg!(
@@ -64,9 +79,9 @@ impl Scheduler {
             }
         }
 
-        let _ = receiver.await?;
+        let _ = receiver.await.unwrap();
 
-        let res = self.executor.execute(req).await?;
+        let res = self.executor.execute(req).await.unwrap();
 
         {
             let mut inner = self.inner.lock().unwrap();
@@ -85,12 +100,12 @@ impl Scheduler {
 
 #[cfg(test)]
 mod tests {
+    use faux::when;
     use crate::calvinite_tonic::run_stmt_response::Result::Success;
     use crate::calvinite_tonic::{
         RunStmtRequest, RecordStorage, RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
     };
     use crate::executor::Executor;
-    use faux::when;
     use crate::scheduler::Scheduler;
 
     #[tokio::test]
