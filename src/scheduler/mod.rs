@@ -24,28 +24,20 @@ impl Default for SchedulerData {
     }
 }
 
-#[async_trait::async_trait]
-pub trait Scheduler {
-    async fn submit_txn(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse>;
-}
-
 #[derive(Debug, Clone)]
-pub struct SchedulerImpl<E> {
+pub struct Scheduler {
     inner: Arc<Mutex<SchedulerData>>,
-    executor: E,
+    executor: Executor,
 }
 
-impl<E: Executor + Debug + Clone> SchedulerImpl<E> {
-    pub fn new(executor: E) -> Self {
+impl Scheduler {
+    pub fn new(executor: Executor) -> Self {
         let inner = Arc::new(Mutex::new(SchedulerData::default()));
         Self { inner, executor }
     }
-}
 
-#[async_trait::async_trait]
-impl<E: Executor + Debug + Clone + Send + Sync> Scheduler for SchedulerImpl<E> {
     // Submits a txn for execution. Txn will be run when it is safe. Returns result of txn.
-    async fn submit_txn(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse> {
+    pub async fn submit_txn(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse> {
         let txn_uuid = Uuid::parse_str(&req.uuid)?;
         let (sender, receiver) = sync::oneshot::channel();
 
@@ -98,40 +90,28 @@ mod tests {
         RunStmtRequest, RecordStorage, RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
     };
     use crate::executor::Executor;
-    use crate::scheduler::SchedulerImpl;
+    use faux::when;
     use crate::scheduler::Scheduler;
-
-    #[derive(Clone, Debug, Default)]
-    struct MockExecutor {}
-
-    #[async_trait::async_trait]
-    impl Executor for MockExecutor {
-        async fn execute(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse> {
-            let txn_uuid = req.uuid.clone();
-
-            let stmt_response = RunStmtResponse {
-                result: Some(Success(RunStmtResults {
-                    uuid: txn_uuid,
-                    results: vec![],
-                })),
-            };
-
-            Ok(stmt_response)
-        }
-    }
 
     #[tokio::test]
     async fn scheduler_executes_single_stmt() {
-        let executor = MockExecutor::default();
-
-        let scheduler = SchedulerImpl::new(executor);
+        let mut executor = Executor::faux();
 
         let txn_uuid = uuid::Uuid::new_v4().to_string();
 
         let req = RunStmtRequestWithUuid {
             query: "".to_string(),
-            uuid: txn_uuid,
+            uuid: txn_uuid.clone(),
         };
+
+        when!(executor.execute).then_return(Ok(RunStmtResponse {
+            result: Some(Success(RunStmtResults {
+                uuid: txn_uuid.clone(),
+                results: vec![],
+            })),
+        }));
+
+        let scheduler = Scheduler::new(executor);
 
         let res = scheduler.submit_txn(req).await.unwrap();
 

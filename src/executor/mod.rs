@@ -9,9 +9,13 @@ use anyhow::anyhow;
 use prost::Message;
 use sqlparser::ast;
 use std::collections::HashMap;
+use std::error::Error;
 use std::sync::Arc;
 use tokio::sync;
 use tokio::sync::mpsc;
+
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum ExecutorErr {}
 
 #[derive(Clone, Debug, Eq, Hash, PartialOrd, PartialEq)]
 struct TouchedRecord {
@@ -19,16 +23,14 @@ struct TouchedRecord {
     is_dirty: bool,
 }
 
-#[async_trait::async_trait]
-pub trait Executor {
-    async fn execute(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse>;
-}
-
-pub struct ExecutorImpl {
+#[cfg_attr(test, faux::create)]
+#[derive(Clone, Debug)]
+pub struct Executor {
     storage: sled::Db,
 }
 
-impl Default for ExecutorImpl {
+#[cfg_attr(test, faux::methods)]
+impl Default for Executor {
     fn default() -> Self {
         let tmp_dir = tempfile::tempdir().unwrap();
         dbg!("Creating Sled DB at {}", tmp_dir.path().to_str().unwrap());
@@ -36,11 +38,12 @@ impl Default for ExecutorImpl {
     }
 }
 
-#[async_trait::async_trait]
-impl Executor for ExecutorImpl {
-    async fn execute(&self, req: RunStmtRequestWithUuid) -> anyhow::Result<RunStmtResponse> {
+#[cfg_attr(test, faux::methods)]
+impl Executor {
+    pub async fn execute(&self, req: RunStmtRequestWithUuid) -> Result<RunStmtResponse, ExecutorErr> {
         let txn_uuid = req.uuid.clone();
-        let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query.clone())?;
+
+        let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query.clone()).unwrap();
 
         // Load read and write records into local memory
         let mut record_cache = HashMap::<TouchedRecord, RecordStorage>::new();
@@ -48,8 +51,8 @@ impl Executor for ExecutorImpl {
         for select_record in sql_stmt.selected_records.iter() {
             let record_bytes = self
                 .storage
-                .get(bincode::serialize(select_record)?)?
-                .ok_or_else(|| anyhow!("no record exists for {}", select_record.id))?;
+                .get(bincode::serialize(select_record).unwrap()).unwrap()
+                .ok_or_else(|| anyhow!("no record exists for {}", select_record.id)).unwrap();
 
             let record_bytes_buf = bytes::Bytes::from(record_bytes.to_vec());
 
@@ -58,15 +61,15 @@ impl Executor for ExecutorImpl {
                     record: select_record.clone(),
                     is_dirty: false,
                 },
-                RecordStorage::decode(record_bytes_buf)?,
+                RecordStorage::decode(record_bytes_buf).unwrap(),
             );
         }
 
         for update_record in sql_stmt.updated_records.iter() {
             let record_bytes = self
                 .storage
-                .get(bincode::serialize(update_record)?)?
-                .ok_or_else(|| anyhow!("no record exists for {}", update_record.id))?;
+                .get(bincode::serialize(update_record).unwrap()).unwrap()
+                .ok_or_else(|| anyhow!("no record exists for {}", update_record.id)).unwrap();
 
             let record_bytes_buf = bytes::Bytes::from(record_bytes.to_vec());
 
@@ -75,14 +78,14 @@ impl Executor for ExecutorImpl {
                     record: update_record.clone(),
                     is_dirty: false,
                 },
-                RecordStorage::decode(record_bytes_buf)?,
+                RecordStorage::decode(record_bytes_buf).unwrap(),
             );
         }
 
         dbg!("Record Cache Before Execution: {:?}", record_cache.clone());
 
         // Execute the query
-        let results = Self::execute_stmt(&mut record_cache, sql_stmt.ast_stmts.first().unwrap())?;
+        let results = Self::execute_stmt(&mut record_cache, sql_stmt.ast_stmts.first().unwrap()).unwrap();
 
         dbg!("Record Cache After Execution: {:?}", record_cache.clone());
 
@@ -90,7 +93,7 @@ impl Executor for ExecutorImpl {
         for (key, value) in record_cache.into_iter() {
             if key.is_dirty {
                 self.storage
-                    .insert(bincode::serialize(&key.record)?, value.encode_to_vec());
+                    .insert(bincode::serialize(&key.record).unwrap(), value.encode_to_vec());
             }
         }
 
@@ -101,9 +104,7 @@ impl Executor for ExecutorImpl {
             })),
         })
     }
-}
 
-impl ExecutorImpl {
     fn execute_stmt(
         record_cache: &mut HashMap<TouchedRecord, RecordStorage>,
         stmt: &ast::Statement,
@@ -202,11 +203,11 @@ mod tests {
     use crate::calvinite_tonic::run_stmt_response::Result::Success;
     use std::sync::Arc;
     use tokio::sync::{broadcast, mpsc};
-    use crate::executor::{Executor, ExecutorImpl};
+    use crate::executor::{Executor};
 
     #[tokio::test]
     async fn executes_write_read() {
-        let mut ex = ExecutorImpl::default();
+        let mut ex = Executor::default();
 
         let stmt1_uuid = uuid::Uuid::new_v4();
         let stmt1 = RunStmtRequestWithUuid {

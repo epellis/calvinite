@@ -5,8 +5,8 @@
 // use calvinite::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcServiceServer;
 // use calvinite::calvinite_tonic::{RecordStorage, RunStmtRequest};
 // use calvinite::executor::ExecutorService;
-// use calvinite::scheduler::SchedulerService;
-// use calvinite::sequencer::SequencerService;
+// use calvinite::scheduler::{Scheduler, SchedulerService};
+// use calvinite::sequencer::{Sequencer, SequencerService};
 // use std::sync::Arc;
 // use tokio::net::TcpListener;
 // use tokio::sync::{broadcast, mpsc};
@@ -15,9 +15,7 @@
 // use tonic::Request;
 //
 // pub struct CalvinSingleInstance {
-//     sequencer_thread: JoinHandle<()>,
-//     scheduler_thread: JoinHandle<()>,
-//     executor_thread: JoinHandle<()>,
+//     sequencer: Sequencer,
 //     client: SequencerGrpcServiceClient<Channel>,
 // }
 //
@@ -67,7 +65,7 @@
 //             completed_queries_channel_tx,
 //             arc_query_result_channel_tx,
 //         )
-//         .unwrap();
+//             .unwrap();
 //
 //         let executor_thread = tokio::spawn(async move {
 //             es.serve().await.unwrap();
