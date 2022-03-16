@@ -3,7 +3,7 @@ use crate::common::Record;
 use crate::executor::Executor;
 use crate::scheduler::lock_manager::LockManager;
 use crate::stmt_analyzer;
-use crate::stmt_analyzer::SqlStmt;
+
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
@@ -108,7 +108,7 @@ impl Scheduler {
 mod tests {
     use crate::calvinite_tonic::run_stmt_response::Result::Success;
     use crate::calvinite_tonic::{
-        RecordStorage, RunStmtRequest, RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
+        RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
     };
     use crate::executor::Executor;
     use crate::scheduler::Scheduler;

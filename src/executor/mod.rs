@@ -9,10 +9,10 @@ use anyhow::anyhow;
 use prost::Message;
 use sqlparser::ast;
 use std::collections::HashMap;
-use std::error::Error;
-use std::sync::Arc;
-use tokio::sync;
-use tokio::sync::mpsc;
+
+
+
+
 
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum ExecutorErr {}
@@ -48,7 +48,7 @@ impl Executor {
     ) -> Result<RunStmtResponse, ExecutorErr> {
         let txn_uuid = req.uuid.clone();
 
-        let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query.clone()).unwrap();
+        let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query).unwrap();
 
         // Load read and write records into local memory
         let mut record_cache = HashMap::<TouchedRecord, RecordStorage>::new();
@@ -112,7 +112,7 @@ impl Executor {
         Ok(RunStmtResponse {
             result: Some(Success(RunStmtResults {
                 uuid: txn_uuid,
-                results: results,
+                results,
             })),
         })
     }
@@ -214,8 +214,8 @@ mod tests {
 
     use crate::calvinite_tonic::run_stmt_response::Result::Success;
     use crate::executor::Executor;
-    use std::sync::Arc;
-    use tokio::sync::{broadcast, mpsc};
+    
+    
 
     #[tokio::test]
     async fn executes_write_read() {
