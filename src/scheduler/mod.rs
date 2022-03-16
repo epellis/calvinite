@@ -107,9 +107,7 @@ impl Scheduler {
 #[cfg(test)]
 mod tests {
     use crate::calvinite_tonic::run_stmt_response::Result::Success;
-    use crate::calvinite_tonic::{
-        RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults,
-    };
+    use crate::calvinite_tonic::{RunStmtRequestWithUuid, RunStmtResponse, RunStmtResults};
     use crate::executor::Executor;
     use crate::scheduler::Scheduler;
     use faux::when;

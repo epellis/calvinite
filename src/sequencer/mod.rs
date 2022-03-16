@@ -2,9 +2,7 @@ use crate::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcService;
 use crate::calvinite_tonic::{RunStmtRequest, RunStmtRequestWithUuid, RunStmtResponse};
 use std::fmt::Debug;
 
-
 use crate::scheduler::Scheduler;
-
 
 use tonic::Response;
 use uuid::Uuid;
@@ -48,9 +46,7 @@ mod tests {
     use crate::calvinite_tonic::run_stmt_response::Result::Success;
     use crate::calvinite_tonic::sequencer_grpc_service_client::SequencerGrpcServiceClient;
     use crate::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcServiceServer;
-    use crate::calvinite_tonic::{
-        RunStmtRequest, RunStmtResponse, RunStmtResults,
-    };
+    use crate::calvinite_tonic::{RunStmtRequest, RunStmtResponse, RunStmtResults};
     use crate::scheduler::Scheduler;
     use crate::sequencer::Sequencer;
     use faux::when;

@@ -10,10 +10,6 @@ use prost::Message;
 use sqlparser::ast;
 use std::collections::HashMap;
 
-
-
-
-
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum ExecutorErr {}
 
@@ -214,8 +210,6 @@ mod tests {
 
     use crate::calvinite_tonic::run_stmt_response::Result::Success;
     use crate::executor::Executor;
-    
-    
 
     #[tokio::test]
     async fn executes_write_read() {
