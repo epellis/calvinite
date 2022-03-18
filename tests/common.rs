@@ -18,7 +18,7 @@ pub struct CalvinSingleInstance {
 impl CalvinSingleInstance {
     pub async fn new() -> Self {
         let sequencer_server = SequencerServer::default();
-        let mut sequencer = sequencer_server.build_sequencer();
+        let mut sequencer = sequencer_server.build_default_sequencer();
 
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let listener_address = listener.local_addr().unwrap();
