@@ -4,7 +4,7 @@ use calvinite::calvinite_tonic::run_stmt_response::Result::Success;
 use calvinite::calvinite_tonic::sequencer_grpc_service_client::SequencerGrpcServiceClient;
 use calvinite::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcServiceServer;
 use calvinite::calvinite_tonic::{RecordStorage, RunStmtRequest};
-use calvinite::sequencer::Sequencer;
+use calvinite::sequencer::{Sequencer, SequencerServer};
 
 use tokio::net::TcpListener;
 
@@ -17,7 +17,8 @@ pub struct CalvinSingleInstance {
 
 impl CalvinSingleInstance {
     pub async fn new() -> Self {
-        let sequencer = Sequencer::default();
+        let sequencer_server = SequencerServer::default();
+        let mut sequencer = sequencer_server.build_sequencer();
 
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let listener_address = listener.local_addr().unwrap();
@@ -26,8 +27,12 @@ impl CalvinSingleInstance {
         let listener_http_address = format!("http://127.0.0.1:{}", listener_address.port());
 
         tokio::spawn(async move {
+            sequencer.serve().await;
+        });
+
+        tokio::spawn(async move {
             Server::builder()
-                .add_service(SequencerGrpcServiceServer::new(sequencer))
+                .add_service(SequencerGrpcServiceServer::new(sequencer_server))
                 .serve_with_incoming(listener_stream)
                 .await
                 .unwrap();
