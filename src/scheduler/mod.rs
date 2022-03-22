@@ -60,6 +60,8 @@ impl Scheduler {
         req: RunStmtRequestWithUuid,
     ) -> Result<RunStmtResponse, SchedulerErr> {
         let txn_uuid = Uuid::parse_str(&req.uuid).unwrap();
+
+        // TODO: Better naming
         let (sender, receiver) = sync::oneshot::channel();
 
         let sql_stmt = stmt_analyzer::SqlStmt::from_string(req.query.clone()).unwrap();
@@ -72,6 +74,7 @@ impl Scheduler {
             impacted_records.clone()
         );
 
+        // Insert the txn and start any ready-to-go txns
         {
             let mut inner = self.inner.lock().unwrap();
 
@@ -85,10 +88,12 @@ impl Scheduler {
             }
         }
 
+        // Wait for this txn to be started
         let _ = receiver.await.unwrap();
 
         let res = self.executor.execute(req).await.unwrap();
 
+        // Complete this txn and start any ready-to-go txns
         {
             let mut inner = self.inner.lock().unwrap();
 

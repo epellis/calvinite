@@ -97,7 +97,7 @@ impl SequencerGrpcService for SequencerServer {
             finished_txn_notifier.insert(txn_uuid, finished_txn_tx);
         }
 
-        self.global_req_log_tx.send(req);
+        self.global_req_log_tx.send(req).unwrap();
 
         let res = finished_txn_rx.await.unwrap();
 
