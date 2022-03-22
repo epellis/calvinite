@@ -4,7 +4,7 @@ mod common;
 
 #[tokio::test]
 async fn test_write_then_read() {
-    let mut calvinite = common::CalvinSingleInstance::new().await;
+    let mut calvinite = common::CalvinSingleInstance::default().await;
 
     calvinite
         .assert_query("INSERT INTO foo VALUES (1, 2)", Vec::new())
@@ -19,7 +19,7 @@ async fn test_write_then_read() {
 
 #[tokio::test]
 async fn test_write_then_read_then_read() {
-    let mut calvinite = common::CalvinSingleInstance::new().await;
+    let mut calvinite = common::CalvinSingleInstance::default().await;
 
     calvinite
         .assert_query("INSERT INTO foo VALUES (1, 2)", Vec::new())

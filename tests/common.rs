@@ -3,11 +3,14 @@ extern crate core;
 use calvinite::calvinite_tonic::run_stmt_response::Result::Success;
 use calvinite::calvinite_tonic::sequencer_grpc_service_client::SequencerGrpcServiceClient;
 use calvinite::calvinite_tonic::sequencer_grpc_service_server::SequencerGrpcServiceServer;
-use calvinite::calvinite_tonic::{RecordStorage, RunStmtRequest};
+use calvinite::calvinite_tonic::{RecordStorage, RunStmtRequest, RunStmtRequestWithUuid};
 use calvinite::sequencer::{Sequencer, SequencerServer};
 
 use tokio::net::TcpListener;
 
+use tokio::runtime::Runtime;
+use tokio::sync;
+use tokio::sync::broadcast::Sender;
 use tonic::transport::{Channel, Server};
 use tonic::Request;
 
@@ -15,9 +18,15 @@ pub struct CalvinSingleInstance {
     client: SequencerGrpcServiceClient<Channel>,
 }
 
+
 impl CalvinSingleInstance {
-    pub async fn new() -> Self {
-        let sequencer_server = SequencerServer::default();
+    pub async fn default() -> Self {
+        let (global_req_log_tx, _) = sync::broadcast::channel(1);
+        Self::new_with_global_req_log(global_req_log_tx).await
+    }
+
+    pub async fn new_with_global_req_log(global_req_log_tx: Sender<RunStmtRequestWithUuid>) -> Self {
+        let sequencer_server = SequencerServer::new(global_req_log_tx);
         let mut sequencer = sequencer_server.build_default_sequencer();
 
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -57,4 +66,12 @@ impl CalvinSingleInstance {
             panic!("Results were supposed to be successful")
         }
     }
+}
+
+pub struct CalvinMultipleInstances {
+    instances: Vec<CalvinSingleInstance>
+}
+
+impl CalvinMultipleInstances {
+
 }

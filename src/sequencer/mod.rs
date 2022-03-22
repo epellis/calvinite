@@ -59,15 +59,19 @@ impl SequencerServer {
             finished_txn_notifier,
         }
     }
+
+    pub fn new(global_req_log_tx: Sender<RunStmtRequestWithUuid>) -> Self {
+        Self {
+            global_req_log_tx,
+            finished_txn_notifier: Arc::new(Mutex::new(HashMap::default())),
+        }
+    }
 }
 
 impl Default for SequencerServer {
     fn default() -> Self {
         let (global_req_log_tx, _) = sync::broadcast::channel(1);
-        Self {
-            global_req_log_tx,
-            finished_txn_notifier: Arc::new(Mutex::new(HashMap::default())),
-        }
+        Self::new(global_req_log_tx)
     }
 }
 
