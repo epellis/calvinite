@@ -8,8 +8,8 @@ the [Calvin](http://cs.yale.edu/homes/thomson/publications/calvin-sigmod12.pdf) 
 ## TODO List
 
 - [x] `SELECT * FROM foo WHERE id = 1` on single partition, single replica
-- [ ] Exception handling all the way back to the client
-- [ ] `SELECT * FROM foo WHERE id = 1` on single partition, multiple replica
+- [x] Exception handling all the way back to the client
+- [x] `SELECT * FROM foo WHERE id = 1` on single partition, multiple replica
 - [ ] `SELECT * FROM foo WHERE id = 1` on multiple partition, single replica
 - [ ] `SELECT * FROM foo WHERE id = 1` on multiple partition, multiple replica
 - [ ] Implement raft log or use OSS library
