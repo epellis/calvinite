@@ -1,3 +1,5 @@
+#![feature(wrapping_int_impl)]
+
 extern crate core;
 
 pub mod common;

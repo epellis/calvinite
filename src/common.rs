@@ -1,6 +1,9 @@
+use std::mem;
+
 use serde::{Deserialize, Serialize};
 
-const VIRTUAL_NODE_SIZE_BITS: usize = 10;
+pub type VirtualNodeSize = u32;
+pub const VIRTUAL_NODE_SIZE_BITS: usize = mem::size_of::<VirtualNodeSize>();
 
 // TODO: Maybe just make the virtual node 
 #[derive(Debug, Clone, Hash, PartialEq, PartialOrd, Eq, Serialize, Deserialize)]

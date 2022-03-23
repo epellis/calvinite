@@ -10,6 +10,8 @@ use prost::Message;
 use sqlparser::ast;
 use std::collections::HashMap;
 
+pub mod peer;
+
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum ExecutorErr {}
 
