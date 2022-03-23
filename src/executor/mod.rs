@@ -52,7 +52,7 @@ impl Executor {
         for select_record in sql_stmt.selected_records.iter() {
             let record_bytes = self
                 .storage
-                .get(bincode::serialize(select_record).unwrap())
+                .get(select_record.fully_qualified_id_as_bytes())
                 .unwrap()
                 .ok_or_else(|| anyhow!("no record exists for {}", select_record.id))
                 .unwrap();
@@ -71,7 +71,7 @@ impl Executor {
         for update_record in sql_stmt.updated_records.iter() {
             let record_bytes = self
                 .storage
-                .get(bincode::serialize(update_record).unwrap())
+                .get(update_record.fully_qualified_id_as_bytes())
                 .unwrap()
                 .ok_or_else(|| anyhow!("no record exists for {}", update_record.id))
                 .unwrap();
@@ -99,7 +99,7 @@ impl Executor {
         for (key, value) in record_cache.into_iter() {
             if key.is_dirty {
                 self.storage.insert(
-                    bincode::serialize(&key.record).unwrap(),
+                    key.record.fully_qualified_id_as_bytes(),
                     value.encode_to_vec(),
                 );
             }
