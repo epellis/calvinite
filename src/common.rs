@@ -2,10 +2,10 @@ use std::mem;
 
 use serde::{Deserialize, Serialize};
 
-pub type VirtualNodeSize = u32;
+pub type VirtualNodeSize = u16;
 pub const VIRTUAL_NODE_SIZE_BITS: usize = mem::size_of::<VirtualNodeSize>();
 
-// TODO: Maybe just make the virtual node 
+// TODO: Maybe just make the virtual node
 #[derive(Debug, Clone, Hash, PartialEq, PartialOrd, Eq, Serialize, Deserialize)]
 pub struct Record {
     pub id: u64,

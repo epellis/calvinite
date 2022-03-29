@@ -77,15 +77,15 @@ pub struct CalvinMultipleInstances {
 impl CalvinMultipleInstances {
     pub async fn new(num_instances: usize) -> Self {
         let (global_req_log_tx, _) = sync::broadcast::channel(1);
-        
+
         let mut instances = Vec::new();
 
         for _ in 0..num_instances {
-            instances.push(CalvinSingleInstance::new_with_global_req_log(global_req_log_tx.clone()).await);
+            instances.push(
+                CalvinSingleInstance::new_with_global_req_log(global_req_log_tx.clone()).await,
+            );
         }
 
-        Self {
-            instances
-        }
+        Self { instances }
     }
 }
